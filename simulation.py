@@ -89,10 +89,13 @@ class PerformanceMetrics:
     def _cagr(self, equity_curve: pd.Series) -> float:
         if len(equity_curve) < 2:
             return float("nan")
-        years = len(equity_curve) / self.periods_per_year
+
+        idx = pd.to_datetime(equity_curve.index)
+        delta_days = (idx[-1] - idx[0]).days + (idx[-1] - idx[0]).seconds / 86400
+        years = delta_days / 365.25
         if years <= 0 or equity_curve.iloc[0] <= 0:
             return float("nan")
-        return float(equity_curve.iloc[-1] ** (1 / years) - 1.0)
+        return float((equity_curve.iloc[-1] / equity_curve.iloc[0]) ** (1 / years) - 1.0)
 
     def _sterling_ratio(self, cagr: float, max_drawdown: float) -> float:
         if max_drawdown >= 0:
@@ -122,8 +125,8 @@ class BacktestResult:
 
 
 class Backtester:
-    def __init__(self, risk_free_rate: float = 0.0):
-        self.metrics_engine = PerformanceMetrics(risk_free_rate=risk_free_rate)
+    def __init__(self, risk_free_rate: float = 0.0, periods_per_year: int = 252):
+        self.metrics_engine = PerformanceMetrics(risk_free_rate=risk_free_rate, periods_per_year=periods_per_year)
 
     def run(self, close_prices: pd.Series, strategy: Alpha) -> BacktestResult:
         """

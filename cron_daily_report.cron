@@ -1,0 +1,2 @@
+# Update /path/to/repo with the absolute path to this repository.
+0 20 * * * cd /path/to/repo/project && /usr/bin/env python3 report.py --ticker AAPL --interval 1d >> /path/to/repo/logs/daily_report.log 2>&1

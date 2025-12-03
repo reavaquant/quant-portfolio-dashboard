@@ -51,7 +51,7 @@ class MarketDataClient:
         end : Optional[dt.date]
             The end date for the data. If not provided, data will be retrieved up to the latest available date.
         interval : str
-            The interval at which to retrieve data. Must be one of the following: "1m", "2m", "5m", "15m", "30m", "1h", "2h", "4h", "1d", "5d", "1wk", "1mo", "3mo". Defaults to "1d".
+            The interval at which to retrieve data. Supported: "5m", "15m", "30m", "1h", "1d". Defaults to "1d".
 
         Returns
         -------
@@ -189,7 +189,7 @@ class MarketDataClient:
         Raises
         -------
         MarketDataError
-            If the interval is not valid (i.e. not one of "1d", "1day", "daily").
+            If the interval is not valid.
         """
         normalized = self._interval_map.get(interval.lower())
         if normalized is None:
