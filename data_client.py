@@ -118,6 +118,32 @@ class MarketDataClient:
             If there is an error retrieving the data (e.g. invalid ticker, etc.).
         """
         return self.get_last_price(ticker)
+    
+    def _col_to_str(self, col) -> Optional[str]:
+        """
+        Convertit un label de colonne (str, tuple, autre) en nom de colonne exploitable.
+        - Si c'est déjà une str : on renvoie tel quel.
+        - Si c'est un tuple (MultiIndex) : on cherche la partie qui ressemble à open/high/low/close/volume.
+        - Sinon : on cast en str.
+        """
+        if isinstance(col, str):
+            return col
+
+        if isinstance(col, tuple):
+            candidates = [p for p in col if isinstance(p, str)]
+            if not candidates:
+                return None
+
+            priority_words = ["open", "high", "low", "close", "last", "adj", "vol", "volume"]
+            for p in candidates:
+                low = p.lower()
+                if any(word in low for word in priority_words):
+                    return p
+
+            return candidates[-1]
+
+        return str(col)
+
 
     def _resolve_ticker(self, ticker: Optional[str]) -> str:
         """
@@ -183,48 +209,67 @@ class MarketDataClient:
         return start, end
 
     def _standardize_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Standardize the given DataFrame by renaming columns to common names
-        and converting their values to numeric types.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            The DataFrame to standardize.
-
-        Returns
-        -------
-        pd.DataFrame
-            The standardized DataFrame with columns in the order of Open, High, Low, Close, Adj Close and Volume.
-        """
+        # index en datetime
         if not isinstance(df.index, pd.DatetimeIndex):
             df.index = pd.to_datetime(df.index)
 
+        # Si MultiIndex → on aplanit en strings "lisibles"
+        if isinstance(df.columns, pd.MultiIndex):
+            flat_cols = []
+            for col in df.columns:
+                name = self._col_to_str(col)
+                flat_cols.append(name if name is not None else str(col))
+            df = df.copy()
+            df.columns = flat_cols
+
+        # Si ce n'est pas un MultiIndex mais des types chelous, on convertit aussi
+        else:
+            new_cols = []
+            for col in df.columns:
+                name = self._col_to_str(col)
+                new_cols.append(name if name is not None else str(col))
+            df = df.copy()
+            df.columns = new_cols
+
+        # Mapping souple vers Open / High / Low / Close / Adj Close / Volume
         rename_map = {}
         for col in df.columns:
+            if not isinstance(col, str):
+                continue
             low = col.lower()
-            if low in {"1. open", "open", "px_open"}:
+
+            if "open" in low and "adj" not in low:
                 rename_map[col] = "Open"
-            elif low in {"2. high", "high", "px_high"}:
+            elif "high" in low:
                 rename_map[col] = "High"
-            elif low in {"3. low", "low", "px_low"}:
+            elif "low" in low and "close" not in low:
                 rename_map[col] = "Low"
-            elif low in {"4. close", "close", "px_last", "last_price"}:
+            elif ("close" in low or "last" in low) and "adj" not in low:
                 rename_map[col] = "Close"
-            elif low in {"5. adjusted close", "adj_close", "adjusted close"}:
+            elif "adj" in low and "close" in low:
                 rename_map[col] = "Adj Close"
-            elif low in {"6. volume", "volume"}:
+            elif "vol" in low:
                 rename_map[col] = "Volume"
 
         df = df.rename(columns=rename_map)
-        ordered_cols = [c for c in ["Open", "High", "Low", "Close", "Adj Close", "Volume"] if c in df.columns]
+
+        ordered_cols = [
+            c
+            for c in ["Open", "High", "Low", "Close", "Adj Close", "Volume"]
+            if c in df.columns
+        ]
         if not ordered_cols:
-            raise MarketDataError("Impossible de standardiser les colonnes de prix.")
+            # on affiche les colonnes dispo pour débug si besoin
+            raise MarketDataError(
+                f"Impossible de standardiser les colonnes de prix. Colonnes trouvées : {list(df.columns)}"
+            )
 
         for col in ordered_cols:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
         return df[ordered_cols]
+
+
 
     def _get_from_yfinance(self, ticker: str, start: dt.date, end: dt.date) -> pd.DataFrame:
         """
@@ -262,7 +307,7 @@ class MarketDataClient:
             df = yf.download(
                 tickers=ticker,
                 start=start,
-                end=end,
+                end=end + dt.timedelta(days=1),  # Yahoo exclut la date de fin
                 interval="1d",
                 auto_adjust=False,
                 progress=False,

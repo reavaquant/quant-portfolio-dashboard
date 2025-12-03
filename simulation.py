@@ -12,12 +12,7 @@ class PerformanceMetrics:
         self.risk_free_rate = risk_free_rate
         self.periods_per_year = periods_per_year
 
-    def compute(
-        self,
-        asset_returns: pd.Series,
-        strategy_returns: pd.Series,
-        equity_curve: pd.Series,
-    ) -> Dict[str, float]:
+    def compute(self, asset_returns: pd.Series, strategy_returns: pd.Series, equity_curve: pd.Series) -> Dict[str, float]:
         return {
             "Asset Total Return": self._total_return(asset_returns),
             "Strategy Total Return": equity_curve.iloc[-1] - 1.0,

@@ -32,7 +32,7 @@ def main():
     default_end = dt.date.today()
     default_start = default_end - dt.timedelta(days=365)
 
-    ticker = st.sidebar.text_input("Ticker", "AAPL")
+    ticker = st.sidebar.text_input("Ticker", "")
     start_date = st.sidebar.date_input("Start date", default_start, max_value=default_end)
     end_date = st.sidebar.date_input(
         "End date", default_end, min_value=start_date, max_value=default_end
@@ -65,8 +65,7 @@ def main():
     forecast_horizon = st.sidebar.slider("Forecast horizon", 5, 60, 20)
 
     settings = MarketDataSettings(
-        source="yfinance",
-        default_ticker="AAPL",
+        source="yfinance"
     )
     data_client = MarketDataClient(settings=settings)
     backtester = Backtester(risk_free_rate=rf_rate)
