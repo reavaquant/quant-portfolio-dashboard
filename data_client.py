@@ -22,6 +22,17 @@ class MarketDataSettings:
 
 
 class MarketDataClient:
+    _interval_map = {
+        "1d": "1d",
+        "1day": "1d",
+        "daily": "1d",
+        "1h": "1h",
+        "60m": "1h",
+        "30m": "30m",
+        "15m": "15m",
+        "5m": "5m",
+    }
+
     def __init__(self, settings: Optional[MarketDataSettings] = None):
         self.settings = settings or MarketDataSettings()
         # cache par source + ticker pour limiter les appels (surtout Yahoo Finance)
@@ -53,15 +64,19 @@ class MarketDataClient:
             If there is an error retrieving the data (e.g. invalid ticker, invalid interval, etc.).
         """
         ticker = self._resolve_ticker(ticker)
-        self._validate_interval(interval)
+        interval = self._validate_interval(interval)
         start, end = self._normalize_dates(start, end)
 
         source = self.settings.source.lower()
         if source == "yfinance":
-            df = self._get_from_yfinance(ticker, start, end)
+            df = self._get_from_yfinance(ticker, start, end, interval=interval)
         elif source == "csv":
+            if interval != "1d":
+                raise MarketDataError("CSV source only supports daily interval (1d).")
             df = self._get_from_csv(ticker)
         elif source == "bloomberg":
+            if interval != "1d":
+                raise MarketDataError("Bloomberg sample connector only supports daily interval (1d).")
             df = self._get_from_bloomberg(ticker, start, end)
         else:
             raise MarketDataError(f"Source inconnue: {source}")
@@ -162,7 +177,7 @@ class MarketDataClient:
             raise MarketDataError("Ticker manquant")
         return resolved
 
-    def _validate_interval(self, interval: str) -> None:
+    def _validate_interval(self, interval: str) -> str:
         """
         Validate that the given interval is valid.
 
@@ -176,8 +191,10 @@ class MarketDataClient:
         MarketDataError
             If the interval is not valid (i.e. not one of "1d", "1day", "daily").
         """
-        if interval.lower() not in {"1d", "1day", "daily"}:
-            raise MarketDataError("Seul l'intervalle daily (1d) est supporté ici.")
+        normalized = self._interval_map.get(interval.lower())
+        if normalized is None:
+            raise MarketDataError("Intervalle non supporté. Utilise 5m, 15m, 30m, 1h ou 1d.")
+        return normalized
 
     def _normalize_dates(self, start: Optional[dt.date], end: Optional[dt.date]) -> Tuple[dt.date, dt.date]:
         """
@@ -271,7 +288,7 @@ class MarketDataClient:
 
 
 
-    def _get_from_yfinance(self, ticker: str, start: dt.date, end: dt.date) -> pd.DataFrame:
+    def _get_from_yfinance(self, ticker: str, start: dt.date, end: dt.date, interval: str = "1d") -> pd.DataFrame:
         """
         Retrieve historical market data for a given ticker from Yahoo Finance.
 
@@ -294,7 +311,7 @@ class MarketDataClient:
         MarketDataError
             If there is an error retrieving the data (e.g. invalid ticker, invalid interval, etc.).
         """
-        key = ("yfinance", ticker.upper(), start, end)
+        key = ("yfinance", ticker.upper(), start, end, interval)
         if key in self._cache:
             return self._cache[key].copy()
 
@@ -308,7 +325,7 @@ class MarketDataClient:
                 tickers=ticker,
                 start=start,
                 end=end + dt.timedelta(days=1),  # Yahoo exclut la date de fin
-                interval="1d",
+                interval=interval,
                 auto_adjust=False,
                 progress=False,
                 threads=False,
