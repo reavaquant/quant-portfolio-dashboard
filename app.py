@@ -6,9 +6,11 @@ import streamlit as st
 
 from simulation import Backtester
 from model import TrendRegressionModel
-from data_client import MarketDataClient
+from data_client import MarketDataClient, MarketDataSettings
 from alphas import MovingAverageCrossAlpha, BuyHoldAlpha
 
+from dotenv import load_dotenv
+load_dotenv()
 
 def build_strategy(strategy_name: str, short_window: int, long_window: int):
     if strategy_name == "Buy & Hold":
@@ -30,14 +32,11 @@ def main():
     default_end = dt.date.today()
     default_start = default_end - dt.timedelta(days=365)
 
-    ticker = st.sidebar.text_input("Ticker", "AAPL")
+    ticker = st.sidebar.text_input("Ticker", "")
     start_date = st.sidebar.date_input("Start date", default_start, max_value=default_end)
     end_date = st.sidebar.date_input(
         "End date", default_end, min_value=start_date, max_value=default_end
     )
-
-    data_source = st.sidebar.selectbox("Data source", options=["Finnhub", "Stooq"], index=0)
-    st.sidebar.caption("Finnhub requires environment variable FINNHUB_API_KEY.")
 
     if start_date >= end_date:
         st.sidebar.error("Start date must be before end date.")
@@ -65,7 +64,10 @@ def main():
     use_forecast = st.sidebar.checkbox("Activate forecast model")
     forecast_horizon = st.sidebar.slider("Forecast horizon", 5, 60, 20)
 
-    data_client = MarketDataClient(source=data_source.lower())
+    settings = MarketDataSettings(
+        source="yfinance"
+    )
+    data_client = MarketDataClient(settings=settings)
     backtester = Backtester(risk_free_rate=rf_rate)
 
     try:
@@ -79,8 +81,8 @@ def main():
         st.error(f"Error : {e}")
         st.stop()
 
-    close = data["close"].copy()
-    last_price = float(close.iloc[-1])
+    close = data["Close"].copy()
+    last_price = data_client.get_latest_price(ticker)
 
     st.subheader(f"{ticker} - Historical data")
     col_price, col_dates = st.columns(2)
