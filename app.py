@@ -44,7 +44,10 @@ def main():
     default_end = dt.date.today()
     default_start = default_end - dt.timedelta(days=3285)
 
-    ticker = st.sidebar.text_input("Ticker", DEFAULT_TICKER)
+    ticker_input = st.sidebar.text_input("Ticker", DEFAULT_TICKER)
+    ticker = ticker_input.strip().upper() or DEFAULT_TICKER
+    if ticker_input.strip() == "":
+        st.sidebar.caption(f"Using default ticker: {DEFAULT_TICKER}")
     start_date = st.sidebar.date_input("Start date", default_start, max_value=default_end)
     end_date = st.sidebar.date_input(
         "End date", default_end, min_value=start_date, max_value=default_end
