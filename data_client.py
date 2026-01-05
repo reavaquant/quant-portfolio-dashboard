@@ -89,6 +89,55 @@ class MarketDataClient:
             raise MarketDataError(f"Aucune donnée pour {ticker} entre {start} et {end}")
 
         return df.sort_index()
+    
+    def get_multi_asset_prices(self, tickers, start=None, end=None, interval="1d"):
+
+        if not tickers or len(tickers) < 2:
+            raise MarketDataError(
+            "At least two tickers are required for a multi-asset portfolio!"
+        )
+
+        interval = self._validate_interval(interval)
+        start, end = self._normalize_dates(start, end)
+
+        tickers = [t.strip().upper() for t in tickers if t and t.strip()]
+        tickers = sorted(set(tickers))
+
+        try:
+            import yfinance as yf
+        except ImportError as exc:
+            raise MarketDataError(
+            "yfinance is not installed (you have to run: pip install yfinance)"
+        ) from exc
+
+        df = yf.download(
+            tickers=tickers,
+            start=start,
+            end=end + dt.timedelta(days=1),
+            interval=interval,
+            auto_adjust=False,
+            progress=False,
+            threads=False,
+        )
+
+        if df is None or df.empty:
+            raise MarketDataError("Yahoo Finance returned no data")
+
+        if isinstance(df.columns, pd.MultiIndex):
+            if "Adj Close" in df.columns.levels[0]:
+                prices = df["Adj Close"]
+            else:
+                prices = df["Close"]
+        else:
+            prices = df
+
+        prices.index = pd.to_datetime(prices.index)
+        prices = prices.dropna(how="all").sort_index()
+
+        if prices.empty:
+            raise MarketDataError("Multi-asset price matrix is empty after cleaning.")
+
+        return prices
 
     def get_last_price(self, ticker: Optional[str] = None) -> float:
         """
