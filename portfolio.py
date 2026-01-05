@@ -105,3 +105,55 @@ def max_drawdown(equity: pd.Series) -> float:
     dd = equity / running_max - 1.0
     return float(dd.min())
 
+def simulate_portfolio(
+    prices: pd.DataFrame,
+    target_weights: pd.Series,
+    rebalance: str = "none",
+    initial_value: float = 1.0,
+) -> pd.Series:
+    """
+    Simulate a portfolio equity curve with optional rebalancing.
+    rebalance: "none", "weekly", "monthly"
+    """
+    if prices is None or prices.empty:
+        raise PortfolioError("Prices are empty.")
+
+    prices = prices.dropna(how="all").copy()
+    rets = compute_returns(prices)
+
+    w = target_weights.reindex(rets.columns).fillna(0.0)
+    if float(w.sum()) == 0.0:
+        raise PortfolioError("Target weights sum to 0 after alignment.")
+    w = w / float(w.sum())
+
+    rebalance = rebalance.lower().strip()
+    if rebalance not in {"none", "weekly", "monthly"}:
+        raise PortfolioError("rebalance must be one of: none, weekly, monthly")
+
+    equity = pd.Series(index=rets.index, dtype=float, name="Portfolio Equity")
+
+    # holdings are in "value" terms per asset
+    holdings = initial_value * w
+    equity.iloc[0] = initial_value
+
+    # define rebalance dates
+    if rebalance == "none":
+        rebalance_dates = set()
+    elif rebalance == "weekly":
+        rebalance_dates = set(rets.resample("W-MON").first().index)
+    else:  # monthly
+        rebalance_dates = set(rets.resample("ME").first().index)
+
+    for i in range(1, len(rets)):
+        date = rets.index[i]
+        r = rets.iloc[i]
+
+        holdings = holdings * (1.0 + r)
+        total_value = float(holdings.sum())
+        equity.iloc[i] = total_value
+
+        if date in rebalance_dates:
+            holdings = total_value * w
+
+    equity = equity.ffill()
+    return equity
