@@ -157,3 +157,39 @@ def simulate_portfolio(
 
     equity = equity.ffill()
     return equity
+
+def strategy_portfolio_returns(
+    prices: pd.DataFrame,
+    base_weights: pd.Series,
+    positions: pd.DataFrame,
+    use_lookahead_safe_shift: bool = True,
+) -> pd.Series:
+    """
+    Convert strategy positions (0/1 per asset) into portfolio returns.
+    Uninvested part stays in cash (0% return).
+    """
+    if prices is None or prices.empty:
+        raise PortfolioError("Prices are empty.")
+    if positions is None or positions.empty:
+        raise PortfolioError("Positions are empty.")
+
+    rets = compute_returns(prices)
+
+    # align
+    positions = positions.reindex(rets.index).reindex(columns=rets.columns).fillna(0.0)
+    w = base_weights.reindex(rets.columns).fillna(0.0)
+    if float(w.sum()) == 0.0:
+        raise PortfolioError("Base weights sum to 0.")
+
+    w = w / float(w.sum())
+
+    # avoid lookahead: signal computed at date t is applied on next return (t -> t+1)
+    if use_lookahead_safe_shift:
+        positions = positions.shift(1).fillna(0.0)
+
+    # effective weights each day (<=1 total exposure because positions in {0,1})
+    w_eff = positions.mul(w, axis=1)
+
+    pr = (rets * w_eff).sum(axis=1)
+    pr.name = "Portfolio Return"
+    return pr
