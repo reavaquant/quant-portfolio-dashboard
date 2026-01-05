@@ -72,3 +72,36 @@ def equity_curve(returns: pd.Series, initial_value: float = 1.0) -> pd.Series:
     eq = initial_value * (1.0 + returns).cumprod()
     eq.name = "Portfolio Equity"
     return eq
+
+def correlation_matrix(returns: pd.DataFrame) -> pd.DataFrame:
+    if returns is None or returns.empty:
+        raise PortfolioError("Returns are empty.")
+    return returns.corr()
+
+
+def annualized_volatility(returns: pd.Series, periods_per_year: int = 252) -> float:
+    if returns is None or returns.empty:
+        raise PortfolioError("Returns are empty.")
+    return float(returns.std() * np.sqrt(periods_per_year))
+
+
+def annualized_return(returns: pd.Series, periods_per_year: int = 252) -> float:
+    """
+    Geometric annualized return from periodic returns.
+    """
+    if returns is None or returns.empty:
+        raise PortfolioError("Returns are empty.")
+    total = float((1.0 + returns).prod())
+    n = len(returns)
+    if n == 0:
+        raise PortfolioError("Returns length is 0.")
+    return float(total ** (periods_per_year / n) - 1.0)
+
+
+def max_drawdown(equity: pd.Series) -> float:
+    if equity is None or equity.empty:
+        raise PortfolioError("Equity curve is empty.")
+    running_max = equity.cummax()
+    dd = equity / running_max - 1.0
+    return float(dd.min())
+
