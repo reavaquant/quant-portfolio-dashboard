@@ -1,2 +1,12 @@
-#venv
-.venv
+# virtual environments
+.venv/
+venv/
+
+# python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# OS
+.DS_Store
