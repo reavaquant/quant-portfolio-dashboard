@@ -28,7 +28,7 @@ def generate_report(
     end = dt.date.today()
     start = end - dt.timedelta(days=window_days)
 
-    settings = MarketDataSettings(source="yfinance", default_ticker=ticker)
+    settings = MarketDataSettings(default_ticker=ticker)
     client = MarketDataClient(settings=settings)
 
     prices = client.get_history(ticker=ticker, start=start, end=end, interval=interval)

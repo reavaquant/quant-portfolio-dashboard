@@ -1,9 +1,8 @@
 import datetime as dt
-from data_client import MarketDataClient, MarketDataSettings
+from data_client import MarketDataClient
 from portfolio import compute_returns, equal_weights, compute_portfolio_returns, equity_curve
 
-settings = MarketDataSettings(source="yfinance")
-client = MarketDataClient(settings)
+client = MarketDataClient()
 
 start = dt.date.today() - dt.timedelta(days=365)
 end = dt.date.today()

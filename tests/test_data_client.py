@@ -14,17 +14,20 @@ def test_validate_interval_normalizes_and_blocks_unknown():
         client._validate_interval("2d")
 
 
-def test_standardize_columns_handles_multiindex():
+def test_select_ticker_frame_handles_multiindex():
     df = pd.DataFrame(
         {
-            ("AAPL", "close"): [1.0, 2.0],
-            ("AAPL", "open"): [0.9, 1.8],
+            ("AAPL", "Open"): [0.9, 1.8],
+            ("AAPL", "High"): [1.1, 2.1],
+            ("AAPL", "Low"): [0.8, 1.7],
+            ("AAPL", "Close"): [1.0, 2.0],
+            ("AAPL", "Volume"): [100, 200],
         },
         index=pd.date_range("2024-01-01", periods=2, freq="D"),
     )
     client = MarketDataClient()
-    out = client._standardize_columns(df)
-    assert list(out.columns) == ["Open", "Close"]
+    out = client._select_ticker_frame(df, "AAPL")
+    assert list(out.columns) == ["Open", "High", "Low", "Close", "Volume"]
     assert out.iloc[0]["Close"] == 1.0
 
 
