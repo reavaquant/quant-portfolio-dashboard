@@ -38,7 +38,7 @@ pytest
 ### Project structure
 - `app.py` : Streamlit UI + backtests + forecast
 - `data_client.py` : market data accessors (Yahoo Finance by default)
-- `simulation.py` : backtesting and metrics engine
+- `backtest.py` : backtesting and metrics engine
 - `alphas.py` : strategies (Buy & Hold, MA crossover)
 - `model.py` : trend regression forecaster
 - `report.py` : CLI daily report generator
