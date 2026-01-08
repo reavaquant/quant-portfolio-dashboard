@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from alphas import BuyHoldAlpha, MovingAverageCrossAlpha
-from simulation import Backtester, PerformanceMetrics
+from backtest import Backtester, PerformanceMetrics
 
 
 def test_moving_average_cross_alpha_positions():

@@ -1,8 +1,7 @@
 import datetime as dt
-from data_client import MarketDataClient, MarketDataSettings
+from data_client import MarketDataClient
 
-settings = MarketDataSettings(source="yfinance")
-client = MarketDataClient(settings)
+client = MarketDataClient()
 
 start = dt.date.today() - dt.timedelta(days=365)
 end = dt.date.today()

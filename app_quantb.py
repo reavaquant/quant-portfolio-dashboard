@@ -6,16 +6,13 @@ import pandas as pd
 import streamlit as st
 
 from alphas import BuyHoldAlpha, MovingAverageCrossAlpha
-from data_client import MarketDataClient, MarketDataSettings, MarketDataError
+from backtest import PortfolioBacktester
+from data_client import MarketDataClient, MarketDataError
 from portfolio import (
     compute_returns,
     equal_weights,
     normalize_weights,
-    compute_portfolio_returns,
-    equity_curve,
     correlation_matrix,
-    max_drawdown,
-    strategy_portfolio_returns,
 )
 
 DEFAULT_TICKERS = "AAPL,MSFT,SPY"
@@ -25,91 +22,9 @@ def parse_tickers(s: str) -> list[str]:
     return [t.strip().upper() for t in s.split(",") if t.strip()]
 
 
-def _total_return(r: pd.Series) -> float:
-    return float((1.0 + r).prod() - 1.0)
-
-
-def _cagr(equity: pd.Series) -> float:
-    if equity is None or len(equity) < 2:
-        return float("nan")
-    idx = pd.to_datetime(equity.index)
-    delta_days = (idx[-1] - idx[0]).days + (idx[-1] - idx[0]).seconds / 86400
-    years = delta_days / 365.25
-    if years <= 0 or float(equity.iloc[0]) <= 0:
-        return float("nan")
-    return float((float(equity.iloc[-1]) / float(equity.iloc[0])) ** (1.0 / years) - 1.0)
-
-
-def _ann_vol(returns: pd.Series, periods_per_year: int = 252) -> float:
-    return float(returns.std() * np.sqrt(periods_per_year))
-
-
-def _sharpe(returns: pd.Series, risk_free_rate: float = 0.0, periods_per_year: int = 252) -> float:
-    rf_per_period = risk_free_rate / periods_per_year
-    excess = returns - rf_per_period
-    vol = excess.std()
-    if vol == 0 or np.isnan(vol):
-        return float("nan")
-    return float(np.sqrt(periods_per_year) * excess.mean() / vol)
-
-
-def _upside_potential_ratio(returns: pd.Series, risk_free_rate: float = 0.0, periods_per_year: int = 252) -> float:
-    rf_per_period = risk_free_rate / periods_per_year
-    excess = returns - rf_per_period
-    upside = excess[excess > 0]
-    downside = excess[excess < 0]
-    downside_dev = np.sqrt((downside ** 2).mean()) if len(downside) > 0 else 0.0
-    if downside_dev == 0:
-        return float("nan")
-    if len(upside) == 0:
-        return 0.0
-    return float(upside.mean() / downside_dev)
-
-
-def _omega_ratio(returns: pd.Series, risk_free_rate: float = 0.0, periods_per_year: int = 252) -> float:
-    rf_per_period = risk_free_rate / periods_per_year
-    excess = returns - rf_per_period
-    numerator = excess[excess > 0].sum()
-    denominator = (-excess[excess < 0]).sum()
-    if denominator == 0:
-        return float("nan")
-    return float(numerator / denominator)
-
-
-def _calmar_ratio(cagr: float, max_dd: float) -> float:
-    if max_dd >= 0:
-        return float("nan")
-    return float(cagr / abs(max_dd))
-
-
-def _turnover_from_positions(
-    positions: pd.DataFrame,
-    weights: pd.Series,
-    use_lookahead_safe_shift: bool = True,
-) -> float:
-    """
-    Multi-asset turnover: average abs change of effective invested weights per period.
-    """
-    if positions is None or positions.empty or len(positions) < 2:
-        return float("nan")
-
-    pos = positions.copy()
-    if use_lookahead_safe_shift:
-        pos = pos.shift(1).fillna(0.0)
-
-    w = weights.reindex(pos.columns).fillna(0.0)
-    if float(w.sum()) == 0.0:
-        return float("nan")
-    w = w / float(w.sum())
-
-    w_eff = pos.mul(w, axis=1)  
-    changes = w_eff.diff().abs().sum(axis=1).fillna(0.0)
-    return float(changes.sum() / (len(changes) - 1))
-
-
 def main():
     st.set_page_config(page_title="Quant B – Multi-Asset Portfolio", layout="wide")
-    st.title("Quant B – Multi-Asset Portfolio (Yahoo Finance)")
+    st.title("Quant B – Multi-Asset Portfolio")
 
     st.sidebar.header("Parameters")
 
@@ -159,12 +74,17 @@ def main():
     st.sidebar.markdown("### Portfolio weights")
     mode = st.sidebar.radio("Weight mode", ["Equal weights", "Custom weights"])
 
-    client = MarketDataClient(MarketDataSettings(source="yfinance"))
+    client = MarketDataClient()
     try:
         prices = client.get_multi_asset_prices(tickers, start=start, end=end)
     except MarketDataError as e:
         st.error(str(e))
         st.stop()
+
+    latest_prices = prices.iloc[-1].copy()
+    cols = st.columns(len(latest_prices))
+    for idx, ticker in enumerate(latest_prices.index):
+        cols[idx].metric(ticker, f"{latest_prices[ticker]:.2f}")
 
     returns = compute_returns(prices)
 
@@ -201,12 +121,14 @@ def main():
             short_window=int(short_window), long_window=int(long_window)
         )
 
-    positions = alpha.generate_positions(prices)
+    periods_per_year = 252
+    backtester = PortfolioBacktester(risk_free_rate=rf_rate, periods_per_year=periods_per_year)
+    result = backtester.run(prices, weights, alpha)
 
-    portfolio_returns = strategy_portfolio_returns(prices, weights, positions)
-    equity = equity_curve(portfolio_returns)
-
-    asset_returns = compute_portfolio_returns(returns, weights)
+    positions = result.positions
+    portfolio_returns = result.strategy_returns
+    equity = result.equity_curve
+    asset_returns = result.asset_returns
 
     st.subheader("Portfolio equity curve")
 
@@ -239,19 +161,19 @@ def main():
 
     st.markdown("### Performance metrics")
 
-    periods_per_year = 252
+    m = result.metrics
 
-    total_asset_return = _total_return(asset_returns)
-    total_strategy_return = float(equity.iloc[-1] - 1.0)
-    cagr_val = _cagr(equity)
-    vol_val = _ann_vol(portfolio_returns, periods_per_year=periods_per_year)
-    sharpe_val = _sharpe(portfolio_returns, risk_free_rate=rf_rate, periods_per_year=periods_per_year)
+    total_asset_return = m["Asset Total Return"]
+    total_strategy_return = m["Strategy Total Return"]
+    cagr_val = m["Strategy CAGR"]
+    vol_val = m["Strategy Volatility (ann.)"]
+    sharpe_val = m["Strategy Sharpe"]
 
-    max_dd_val = max_drawdown(equity)
-    calmar_val = _calmar_ratio(cagr_val, max_dd_val)
-    upr_val = _upside_potential_ratio(portfolio_returns, risk_free_rate=rf_rate, periods_per_year=periods_per_year)
-    omega_val = _omega_ratio(portfolio_returns, risk_free_rate=rf_rate, periods_per_year=periods_per_year)
-    turnover_val = _turnover_from_positions(positions, weights, use_lookahead_safe_shift=True)
+    max_dd_val = m["Strategy Max Drawdown"]
+    calmar_val = m["Calmar Ratio"]
+    upr_val = m["Upside Potential Ratio"]
+    omega_val = m["Omega Ratio"]
+    turnover_val = m["Strategy Turnover"]
 
     col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("Total asset return", f"{100 * total_asset_return:.2f} %")

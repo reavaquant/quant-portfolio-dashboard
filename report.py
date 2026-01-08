@@ -6,7 +6,7 @@ from typing import Dict, Any
 
 from alphas import BuyHoldAlpha
 from data_client import MarketDataClient, MarketDataSettings, MarketDataError
-from simulation import Backtester
+from backtest import Backtester
 
 
 PERIODS_PER_YEAR = {
@@ -28,7 +28,7 @@ def generate_report(
     end = dt.date.today()
     start = end - dt.timedelta(days=window_days)
 
-    settings = MarketDataSettings(source="yfinance", default_ticker=ticker)
+    settings = MarketDataSettings(default_ticker=ticker)
     client = MarketDataClient(settings=settings)
 
     prices = client.get_history(ticker=ticker, start=start, end=end, interval=interval)

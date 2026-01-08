@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from simulation import Backtester
+from backtest import Backtester
 from model import TrendRegressionModel
 from data_client import MarketDataClient, MarketDataSettings, MarketDataError
 from alphas import MovingAverageCrossAlpha, BuyHoldAlpha
@@ -94,7 +94,7 @@ def main():
     use_forecast = st.sidebar.checkbox("Activate forecast model")
     forecast_horizon = st.sidebar.slider("Forecast horizon", 1, 60, 20)
 
-    settings = MarketDataSettings(source="yfinance", default_ticker=DEFAULT_TICKER)
+    settings = MarketDataSettings(default_ticker=DEFAULT_TICKER)
     data_client = MarketDataClient(settings=settings)
 
     periods_per_year_map = {
@@ -123,6 +123,7 @@ def main():
 
     close = data["Close"].copy()
     last_price = float(close.iloc[-1])
+    st.metric(f"{ticker} last price", f"{last_price:.2f}")
 
     try:
         strategy = build_strategy(strategy_choice, short_window, long_window)
