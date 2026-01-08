@@ -123,6 +123,7 @@ def main():
 
     close = data["Close"].copy()
     last_price = float(close.iloc[-1])
+    st.metric(f"{ticker} last price", f"{last_price:.2f}")
 
     try:
         strategy = build_strategy(strategy_choice, short_window, long_window)

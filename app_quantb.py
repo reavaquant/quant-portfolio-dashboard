@@ -24,7 +24,7 @@ def parse_tickers(s: str) -> list[str]:
 
 def main():
     st.set_page_config(page_title="Quant B – Multi-Asset Portfolio", layout="wide")
-    st.title("Quant B – Multi-Asset Portfolio (Yahoo Finance)")
+    st.title("Quant B – Multi-Asset Portfolio")
 
     st.sidebar.header("Parameters")
 
@@ -80,6 +80,11 @@ def main():
     except MarketDataError as e:
         st.error(str(e))
         st.stop()
+
+    latest_prices = prices.iloc[-1].copy()
+    cols = st.columns(len(latest_prices))
+    for idx, ticker in enumerate(latest_prices.index):
+        cols[idx].metric(ticker, f"{latest_prices[ticker]:.2f}")
 
     returns = compute_returns(prices)
 
