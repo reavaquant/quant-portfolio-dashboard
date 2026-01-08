@@ -1,5 +1,6 @@
 import datetime as dt
 import os
+from contextlib import contextmanager
 
 import altair as alt
 import numpy as np
@@ -30,72 +31,257 @@ DEFAULT_LOOKBACK_DAYS = 3285
 
 
 def apply_theme() -> None:
+    # Altair theme (applies to altair charts only)
+    def _altair_theme():
+        return {
+            "config": {
+                "background": "transparent",
+                "font": "Space Grotesk",
+                "title": {"font": "Fraunces", "fontSize": 16, "fontWeight": 700},
+                "axis": {
+                    "labelFont": "Space Grotesk",
+                    "titleFont": "Space Grotesk",
+                    "labelColor": "#4b5563",
+                    "titleColor": "#111827",
+                    "gridColor": "rgba(15, 23, 42, 0.08)",
+                    "tickColor": "rgba(15, 23, 42, 0.12)",
+                },
+                "legend": {
+                    "labelFont": "Space Grotesk",
+                    "titleFont": "Space Grotesk",
+                    "labelColor": "#4b5563",
+                    "titleColor": "#111827",
+                },
+                "view": {"stroke": "transparent"},
+            }
+        }
+
+    alt.themes.register("quant_pro", _altair_theme)
+    alt.themes.enable("quant_pro")
+
     st.markdown(
         """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap');
-:root {
-  --ink: #1b1b1f;
-  --muted: #5f5f6a;
-  --accent: #0f766e;
-  --card: rgba(255, 255, 255, 0.85);
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap');
+
+:root{
+  --bg0:#fbfaf7;
+  --bg1:#f5f4f0;
+  --ink:#0f172a;
+  --muted:#475569;
+  --muted2:#64748b;
+  --accent:#0f766e;
+  --accent2:#14b8a6;
+
+  --card: rgba(255,255,255,0.78);
+  --card2: rgba(255,255,255,0.92);
   --border: rgba(15, 23, 42, 0.08);
+  --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --shadow2: 0 8px 18px rgba(15, 23, 42, 0.06);
 }
-.stApp {
-  background:
-    radial-gradient(1200px 500px at 12% -10%, #f2efe6 0%, rgba(242, 239, 230, 0) 60%),
-    radial-gradient(1200px 600px at 88% 0%, #e8f2f0 0%, rgba(232, 242, 240, 0) 65%),
-    linear-gradient(180deg, #fbfaf8 0%, #f6f5f2 100%);
+
+html, body, [class*="css"]{
+  font-family: "Space Grotesk", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   color: var(--ink);
 }
-html, body, [class*="css"] {
-  font-family: 'Space Grotesk', sans-serif;
+
+.stApp{
+  background:
+    radial-gradient(1100px 520px at 10% -8%, #f1ede2 0%, rgba(241,237,226,0) 60%),
+    radial-gradient(1100px 640px at 92% -6%, #e6f3f1 0%, rgba(230,243,241,0) 66%),
+    linear-gradient(180deg, var(--bg0) 0%, var(--bg1) 100%);
 }
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Fraunces', serif;
+
+div.block-container{
+  padding-top: 1.8rem;
+  padding-bottom: 2.2rem;
+}
+
+h1,h2,h3,h4,h5,h6{
+  font-family: "Fraunces", serif;
   letter-spacing: 0.2px;
 }
-div.block-container { padding-top: 2rem; }
-.hero {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 18px 22px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-  animation: rise 0.6s ease-out both;
-}
-.hero-title { font-size: 34px; font-weight: 700; }
-.hero-subtitle { color: var(--muted); margin-top: 4px; }
-.module-pill {
-  display: inline-block;
-  margin-top: 12px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(15, 118, 110, 0.1);
-  color: var(--accent);
-  font-weight: 600;
-  letter-spacing: 0.3px;
-}
-[data-testid="stSidebar"] {
-  background: #f3efe7;
+p, li { color: var(--muted); }
+
+/* Hide streamlit chrome */
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+header { visibility: hidden; }
+
+/* Sidebar */
+[data-testid="stSidebar"]{
+  background: linear-gradient(180deg, #f2eee4 0%, #f6f5f0 70%, #f6f5f0 100%);
   border-right: 1px solid var(--border);
 }
-div[data-testid="metric-container"] {
-  background: var(--card);
+[data-testid="stSidebar"] .block-container { padding-top: 1.2rem; }
+.sidebar-brand{
+  padding: 12px 12px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.55);
   border: 1px solid var(--border);
-  padding: 14px;
-  border-radius: 14px;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow2);
 }
-div[data-testid="metric-container"] > div { color: var(--muted); }
-@keyframes rise {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+.sidebar-brand .t{
+  font-family: "Fraunces", serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.sidebar-brand .s{
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted2);
+}
+
+/* Hero */
+.hero{
+  background: linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.68) 100%);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 20px 22px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
+  animation: rise 0.55s ease-out both;
+}
+.hero-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+}
+.hero-title{
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.05;
+}
+.hero-subtitle{
+  color: var(--muted);
+  margin-top: 6px;
+  font-size: 14px;
+}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(20, 184, 166, 0.25);
+  background: rgba(20, 184, 166, 0.10);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+/* Cards / Sections */
+.card{
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px 16px;
+  box-shadow: var(--shadow2);
+  margin: 14px 0;
+}
+.card-title{
+  font-family: "Fraunces", serif;
+  font-weight: 700;
+  font-size: 18px;
+  margin-bottom: 2px;
+}
+.card-caption{
+  color: var(--muted2);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+/* Metrics */
+div[data-testid="metric-container"]{
+  background: rgba(255,255,255,0.92);
+  border: 1px solid var(--border);
+  padding: 14px 14px;
+  border-radius: 16px;
+  box-shadow: var(--shadow2);
+}
+div[data-testid="metric-container"] > div { color: var(--muted2); }
+div[data-testid="stMetricValue"] { font-weight: 800; }
+
+/* Inputs / Controls */
+.stTextInput input, .stDateInput input, .stNumberInput input{
+  border-radius: 12px !important;
+  border: 1px solid rgba(15,23,42,0.12) !important;
+  background: rgba(255,255,255,0.85) !important;
+}
+[data-baseweb="select"] > div{
+  border-radius: 12px !important;
+  border: 1px solid rgba(15,23,42,0.12) !important;
+  background: rgba(255,255,255,0.85) !important;
+}
+.stSlider [data-baseweb="slider"] > div{
+  border-radius: 999px !important;
+}
+.stRadio, .stCheckbox { padding: 4px 0; }
+
+.stButton > button{
+  border-radius: 12px;
+  border: 1px solid rgba(15, 118, 110, 0.35);
+  background: linear-gradient(180deg, rgba(20,184,166,0.18) 0%, rgba(15,118,110,0.12) 100%);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+}
+.stButton > button:hover{
+  border-color: rgba(15, 118, 110, 0.55);
+  transform: translateY(-1px);
+}
+
+/* Charts containers (best-effort) */
+[data-testid="stChart"], [data-testid="stVegaLiteChart"]{
+  background: rgba(255,255,255,0.72);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 10px 10px;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
+}
+
+/* Expander */
+details{
+  background: rgba(255,255,255,0.70);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 6px 10px;
+}
+details summary{
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Dataframe */
+[data-testid="stDataFrame"]{
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+@keyframes rise{
+  from{ opacity:0; transform: translateY(6px); }
+  to{ opacity:1; transform: translateY(0); }
 }
 </style>
 """,
         unsafe_allow_html=True,
     )
+
+
+@contextmanager
+def card(title: str | None = None, caption: str | None = None):
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    if title:
+        st.markdown(f"<div class='card-title'>{title}</div>", unsafe_allow_html=True)
+    if caption:
+        st.markdown(f"<div class='card-caption'>{caption}</div>", unsafe_allow_html=True)
+    yield
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def build_strategy(strategy_name: str, short_window: int, long_window: int):
@@ -222,7 +408,9 @@ def render_single_asset() -> None:
 
     close = data["Close"].copy()
     last_price = float(close.iloc[-1])
-    st.metric(f"{ticker} last price", f"{last_price:.2f}")
+
+    with card("Snapshot", "Latest market print for your selected asset."):
+        st.metric(f"{ticker} last price", f"{last_price:.2f}")
 
     try:
         strategy = build_strategy(strategy_choice, int(short_window), int(long_window))
@@ -240,80 +428,78 @@ def render_single_asset() -> None:
         axis=1,
     )
 
-    st.markdown("### Strategy vs Asset Performance")
-    st.line_chart(comparison_raw)
+    with card("Strategy vs Asset Performance", "Normalized performance comparison."):
+        st.line_chart(comparison_raw)
 
-    st.markdown("### Performance metrics")
+    with card("Performance metrics", "Risk/return overview for the selected configuration."):
+        m = result.metrics
 
-    m = result.metrics
+        col1, col2, col3, col4, col5 = st.columns(5)
+        col1.metric("Total asset return", f"{100 * m['Asset Total Return']:.2f} %")
+        col2.metric("Total strategy return", f"{100 * m['Strategy Total Return']:.2f} %")
+        col3.metric("CAGR", f"{100 * m['Strategy CAGR']:.2f} %")
+        col4.metric("Volatility (ann.)", f"{100 * m['Strategy Volatility (ann.)']:.2f} %")
+        sharpe_val = m["Strategy Sharpe"]
+        calmar_val = m["Calmar Ratio"]
+        col5.metric("Sharpe", "-" if np.isnan(sharpe_val) else f"{sharpe_val:.2f}")
 
-    col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("Total asset return", f"{100 * m['Asset Total Return']:.2f} %")
-    col2.metric("Total strategy return", f"{100 * m['Strategy Total Return']:.2f} %")
-    col3.metric("CAGR", f"{100 * m['Strategy CAGR']:.2f} %")
-    col4.metric("Volatility (ann.)", f"{100 * m['Strategy Volatility (ann.)']:.2f} %")
-    sharpe_val = m["Strategy Sharpe"]
-    calmar_val = m["Calmar Ratio"]
-    col5.metric("Sharpe", "-" if np.isnan(sharpe_val) else f"{sharpe_val:.2f}")
-
-    col6, col7, col8, col9, col10 = st.columns(5)
-    col6.metric("Calmar Ratio", "-" if np.isnan(calmar_val) else f"{calmar_val:.2f}")
-    upr_val = m["Upside Potential Ratio"]
-    col7.metric("Upside Potential Ratio", "-" if np.isnan(upr_val) else f"{upr_val:.2f}")
-    omega_val = m["Omega Ratio"]
-    col8.metric("Omega Ratio", "-" if np.isnan(omega_val) else f"{omega_val:.2f}")
-    col9.metric("Max Drawdown", f"{100 * m['Strategy Max Drawdown']:.2f} %")
-    turnover_val = m["Strategy Turnover"]
-    col10.metric(
-        "Turnover (avg abs delta pos)",
-        "-" if np.isnan(turnover_val) else f"{100 * turnover_val:.2f} %",
-    )
-
-    with st.expander("Daily return details"):
-        st.dataframe(
-            pd.DataFrame(
-                {
-                    "Asset Return": result.asset_returns,
-                    "Strategy Return": result.strategy_returns,
-                }
-            ).tail(10)
+        col6, col7, col8, col9, col10 = st.columns(5)
+        col6.metric("Calmar Ratio", "-" if np.isnan(calmar_val) else f"{calmar_val:.2f}")
+        upr_val = m["Upside Potential Ratio"]
+        col7.metric("Upside Potential Ratio", "-" if np.isnan(upr_val) else f"{upr_val:.2f}")
+        omega_val = m["Omega Ratio"]
+        col8.metric("Omega Ratio", "-" if np.isnan(omega_val) else f"{omega_val:.2f}")
+        col9.metric("Max Drawdown", f"{100 * m['Strategy Max Drawdown']:.2f} %")
+        turnover_val = m["Strategy Turnover"]
+        col10.metric(
+            "Turnover (avg abs delta pos)",
+            "-" if np.isnan(turnover_val) else f"{100 * turnover_val:.2f} %",
         )
 
+        with st.expander("Daily return details"):
+            st.dataframe(
+                pd.DataFrame(
+                    {
+                        "Asset Return": result.asset_returns,
+                        "Strategy Return": result.strategy_returns,
+                    }
+                ).tail(10)
+            )
+
     if use_forecast:
-        st.markdown("### Predictive model")
+        with card("Predictive model", "Trend regression forecast with confidence intervals."):
+            model = TrendRegressionModel(horizon=forecast_horizon, use_log=True)
+            forecast_result = model.fit_predict(close)
 
-        model = TrendRegressionModel(horizon=forecast_horizon, use_log=True)
-        forecast_result = model.fit_predict(close)
+            if forecast_result is None:
+                st.warning("Model cannot be fit.")
+            else:
+                hist = close.copy()
+                fcast = forecast_result.forecast
+                lower = forecast_result.lower
+                upper = forecast_result.upper
 
-        if forecast_result is None:
-            st.warning("Model cannot be fit.")
-        else:
-            hist = close.copy()
-            fcast = forecast_result.forecast
-            lower = forecast_result.lower
-            upper = forecast_result.upper
+                df_forecast = pd.concat(
+                    [
+                        hist.rename("Historical Price"),
+                        fcast.rename("Forecast"),
+                        lower.rename("Lower CI"),
+                        upper.rename("Upper CI"),
+                    ],
+                    axis=1,
+                )
 
-            df_forecast = pd.concat(
-                [
-                    hist.rename("Historical Price"),
-                    fcast.rename("Forecast"),
-                    lower.rename("Lower CI"),
-                    upper.rename("Upper CI"),
-                ],
-                axis=1,
-            )
+                st.line_chart(df_forecast)
 
-            st.line_chart(df_forecast)
+                last_forecast = float(fcast.iloc[-1])
+                st.metric(
+                    "Forecast price at",
+                    f"{last_forecast:,.2f}",
+                    delta=f"{100 * (last_forecast / last_price - 1):.2f} % vs last price",
+                )
 
-            last_forecast = float(fcast.iloc[-1])
-            st.metric(
-                "Forecast price at",
-                f"{last_forecast:,.2f}",
-                delta=f"{100 * (last_forecast / last_price - 1):.2f} % vs last price",
-            )
-
-            with st.expander("Predictive data"):
-                st.dataframe(df_forecast.tail(10))
+                with st.expander("Predictive data"):
+                    st.dataframe(df_forecast.tail(10))
 
 
 def render_multi_asset() -> None:
@@ -398,9 +584,10 @@ def render_multi_asset() -> None:
         st.stop()
 
     latest_prices = prices.iloc[-1].copy()
-    cols = st.columns(len(latest_prices))
-    for idx, ticker in enumerate(latest_prices.index):
-        cols[idx].metric(ticker, f"{latest_prices[ticker]:.2f}")
+    with card("Latest prices", "Most recent close for each selected asset."):
+        cols = st.columns(len(latest_prices))
+        for idx, ticker in enumerate(latest_prices.index):
+            cols[idx].metric(ticker, f"{latest_prices[ticker]:.2f}")
 
     returns = compute_returns(prices)
 
@@ -477,93 +664,94 @@ def render_multi_asset() -> None:
     comparison_df["Portfolio"] = equity_aligned / float(equity_aligned.iloc[0])
     comparison_df.index.name = "Date"
 
-    st.markdown("### Strategy vs Asset Performance")
-    st.line_chart(comparison_df)
+    with card("Strategy vs Asset Performance", "Normalized comparison across assets and portfolio."):
+        st.line_chart(comparison_df)
 
-    st.subheader("Single asset strategy vs portfolio")
-    asset_choice = st.selectbox("Asset", options=list(prices.columns), key="multi_asset")
-    single_series = prices[asset_choice].dropna()
-    if single_series.empty:
-        st.warning("No data available for the selected asset.")
-    else:
-        single_backtester = Backtester(
-            risk_free_rate=rf_rate, periods_per_year=periods_per_year
+    with card("Single asset strategy vs portfolio", "Compare one asset strategy equity curve to the portfolio."):
+        asset_choice = st.selectbox("Asset", options=list(prices.columns), key="multi_asset")
+        single_series = prices[asset_choice].dropna()
+        if single_series.empty:
+            st.warning("No data available for the selected asset.")
+        else:
+            single_backtester = Backtester(
+                risk_free_rate=rf_rate, periods_per_year=periods_per_year
+            )
+            single_result = single_backtester.run(single_series, alpha)
+            single_strategy = single_result.equity_curve
+            single_strategy_norm = single_strategy / float(single_strategy.iloc[0])
+
+            portfolio_norm = comparison_df["Portfolio"]
+            single_compare = pd.concat(
+                [
+                    single_strategy_norm.rename(f"{asset_choice} Strategy"),
+                    portfolio_norm.rename("Portfolio"),
+                ],
+                axis=1,
+            ).dropna()
+            st.line_chart(single_compare)
+
+    with card("Performance metrics", "Portfolio risk/return indicators for the selected strategy."):
+        m = metrics
+
+        total_asset_return = m["Asset Total Return"]
+        total_strategy_return = m["Strategy Total Return"]
+        cagr_val = m["Strategy CAGR"]
+        vol_val = m["Strategy Volatility (ann.)"]
+        sharpe_val = m["Strategy Sharpe"]
+
+        max_dd_val = m["Strategy Max Drawdown"]
+        calmar_val = m["Calmar Ratio"]
+        upr_val = m["Upside Potential Ratio"]
+        omega_val = m["Omega Ratio"]
+        turnover_val = m["Strategy Turnover"]
+
+        col1, col2, col3, col4, col5 = st.columns(5)
+        col1.metric("Total asset return", f"{100 * total_asset_return:.2f} %")
+        col2.metric("Total strategy return", f"{100 * total_strategy_return:.2f} %")
+        col3.metric("CAGR", f"{100 * cagr_val:.2f} %")
+        col4.metric("Volatility (ann.)", f"{100 * vol_val:.2f} %")
+        col5.metric("Sharpe", "-" if np.isnan(sharpe_val) else f"{sharpe_val:.2f}")
+
+        col6, col7, col8, col9, col10 = st.columns(5)
+        col6.metric("Calmar Ratio", "-" if np.isnan(calmar_val) else f"{calmar_val:.2f}")
+        col7.metric("Upside Potential Ratio", "-" if np.isnan(upr_val) else f"{upr_val:.2f}")
+        col8.metric("Omega Ratio", "-" if np.isnan(omega_val) else f"{omega_val:.2f}")
+        col9.metric("Max Drawdown", f"{100 * max_dd_val:.2f} %")
+        col10.metric(
+            "Turnover", "-" if np.isnan(turnover_val) else f"{100 * turnover_val:.2f} %"
         )
-        single_result = single_backtester.run(single_series, alpha)
-        single_strategy = single_result.equity_curve
-        single_strategy_norm = single_strategy / float(single_strategy.iloc[0])
 
-        portfolio_norm = comparison_df["Portfolio"]
-        single_compare = pd.concat(
-            [
-                single_strategy_norm.rename(f"{asset_choice} Strategy"),
-                portfolio_norm.rename("Portfolio"),
-            ],
-            axis=1,
-        ).dropna()
-        st.line_chart(single_compare)
-
-    st.markdown("### Performance metrics")
-
-    m = metrics
-
-    total_asset_return = m["Asset Total Return"]
-    total_strategy_return = m["Strategy Total Return"]
-    cagr_val = m["Strategy CAGR"]
-    vol_val = m["Strategy Volatility (ann.)"]
-    sharpe_val = m["Strategy Sharpe"]
-
-    max_dd_val = m["Strategy Max Drawdown"]
-    calmar_val = m["Calmar Ratio"]
-    upr_val = m["Upside Potential Ratio"]
-    omega_val = m["Omega Ratio"]
-    turnover_val = m["Strategy Turnover"]
-
-    col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("Total asset return", f"{100 * total_asset_return:.2f} %")
-    col2.metric("Total strategy return", f"{100 * total_strategy_return:.2f} %")
-    col3.metric("CAGR", f"{100 * cagr_val:.2f} %")
-    col4.metric("Volatility (ann.)", f"{100 * vol_val:.2f} %")
-    col5.metric("Sharpe", "-" if np.isnan(sharpe_val) else f"{sharpe_val:.2f}")
-
-    col6, col7, col8, col9, col10 = st.columns(5)
-    col6.metric("Calmar Ratio", "-" if np.isnan(calmar_val) else f"{calmar_val:.2f}")
-    col7.metric("Upside Potential Ratio", "-" if np.isnan(upr_val) else f"{upr_val:.2f}")
-    col8.metric("Omega Ratio", "-" if np.isnan(omega_val) else f"{omega_val:.2f}")
-    col9.metric("Max Drawdown", f"{100 * max_dd_val:.2f} %")
-    col10.metric("Turnover", "-" if np.isnan(turnover_val) else f"{100 * turnover_val:.2f} %")
-
-    st.subheader("Correlation heatmap")
-
-    corr = correlation_matrix(returns).copy()
-    corr.index.name = "Ticker"
-    corr_long = corr.reset_index().melt(
-        id_vars="Ticker", var_name="Asset", value_name="Corr"
-    )
-
-    heat = (
-        alt.Chart(corr_long)
-        .mark_rect()
-        .encode(
-            x=alt.X("Asset:N", title=""),
-            y=alt.Y("Ticker:N", title=""),
-            color=alt.Color("Corr:Q", title="Corr", scale=alt.Scale(domain=[-1, 1])),
-            tooltip=["Ticker:N", "Asset:N", alt.Tooltip("Corr:Q", format=".2f")],
+    with card("Correlation heatmap", "Pairwise correlations from returns (same data, nicer frame)."):
+        corr = correlation_matrix(returns).copy()
+        corr.index.name = "Ticker"
+        corr_long = corr.reset_index().melt(
+            id_vars="Ticker", var_name="Asset", value_name="Corr"
         )
-        .properties(height=350)
-    )
 
-    text = (
-        alt.Chart(corr_long)
-        .mark_text(size=12)
-        .encode(
-            x="Asset:N",
-            y="Ticker:N",
-            text=alt.Text("Corr:Q", format=".2f"),
+        heat = (
+            alt.Chart(corr_long)
+            .mark_rect(cornerRadius=4)
+            .encode(
+                x=alt.X("Asset:N", title=""),
+                y=alt.Y("Ticker:N", title=""),
+                color=alt.Color("Corr:Q", title="Corr", scale=alt.Scale(domain=[-1, 1])),
+                tooltip=["Ticker:N", "Asset:N", alt.Tooltip("Corr:Q", format=".2f")],
+            )
+            .properties(height=360)
         )
-    )
 
-    st.altair_chart((heat + text), use_container_width=True)
+        text = (
+            alt.Chart(corr_long)
+            .mark_text(size=12)
+            .encode(
+                x="Asset:N",
+                y="Ticker:N",
+                text=alt.Text("Corr:Q", format=".2f"),
+                color=alt.value("#0f172a"),
+            )
+        )
+
+        st.altair_chart((heat + text), use_container_width=True)
 
     with st.expander("Raw data"):
         st.write("Strategy:", alpha.name)
@@ -582,17 +770,35 @@ def main():
     st.set_page_config(page_title="Quant Portfolio Dashboard", layout="wide")
     apply_theme()
 
+    # Sidebar brand (appearance only)
+    st.sidebar.markdown(
+        """
+<div class="sidebar-brand">
+  <div class="t">Quant Dashboard</div>
+  <div class="s">Backtests • Portfolio • Metrics</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+    st.sidebar.markdown("")
+
     st.markdown(
         "<script>setTimeout(() => { window.location.reload(); }, "
         f"{AUTO_REFRESH_MS});</script>",
         unsafe_allow_html=True,
     )
 
+    # Hero
     st.markdown(
         """
 <div class="hero">
-  <div class="hero-title">Quant Portfolio Dashboard</div>
-  <div class="hero-subtitle">Single asset backtests and multi-asset portfolio analytics in one place.</div>
+  <div class="hero-top">
+    <div>
+      <div class="hero-title">Quant Portfolio Dashboard</div>
+      <div class="hero-subtitle">Single asset backtests and multi-asset portfolio analytics in one place.</div>
+    </div>
+    <div class="badge">● Live refresh • 5 min</div>
+  </div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -603,8 +809,6 @@ def main():
         "Module", ["Single Asset", "Multi-Asset Portfolio"], key="workspace"
     )
     st.sidebar.markdown("---")
-
-    st.markdown(f"<div class='module-pill'>{mode}</div>", unsafe_allow_html=True)
 
     if mode == "Single Asset":
         render_single_asset()
