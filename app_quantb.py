@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from alphas_multi import BuyHoldAlpha, MovingAverageCrossAlpha
+from alphas import BuyHoldAlpha, MovingAverageCrossAlpha
 from data_client import MarketDataClient, MarketDataSettings, MarketDataError
 from portfolio import (
     compute_returns,

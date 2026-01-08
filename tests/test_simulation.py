@@ -6,9 +6,12 @@ from simulation import Backtester, PerformanceMetrics
 
 
 def test_moving_average_cross_alpha_positions():
-    prices = pd.Series([1, 2, 3, 2, 1, 2], index=pd.date_range("2024-01-01", periods=6, freq="D"))
+    prices = pd.DataFrame(
+        {"Asset": [1, 2, 3, 2, 1, 2]},
+        index=pd.date_range("2024-01-01", periods=6, freq="D"),
+    )
     alpha = MovingAverageCrossAlpha(short_window=1, long_window=2)
-    positions = alpha.generate_positions(prices)
+    positions = alpha.generate_positions(prices)["Asset"]
     # Should flip when short MA crosses above long MA
     assert positions.iloc[0] == 0.0
     assert positions.iloc[2] == 1.0

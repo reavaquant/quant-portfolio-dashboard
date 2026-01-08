@@ -146,8 +146,10 @@ class Backtester:
             asset returns and metrics for the backtest.
         """
         prices = close_prices.dropna()
-        positions = strategy.generate_positions(prices)
-        positions = positions.reindex(prices.index).ffill().fillna(0.0)
+        prices_df = prices.to_frame(name=prices.name or "price")
+        positions_df = strategy.generate_positions(prices_df)
+        positions = positions_df.iloc[:, 0].reindex(prices.index).ffill().fillna(0.0)
+        positions.name = "position"
 
         asset_returns = prices.pct_change().fillna(0.0)
         strategy_returns = positions.shift(1).fillna(0.0) * asset_returns
