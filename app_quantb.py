@@ -44,7 +44,9 @@ def main():
         st.stop()
 
     today = dt.date.today()
-    start = st.sidebar.date_input("Start date", today - dt.timedelta(days=365))
+    start = st.sidebar.date_input(
+        "Start date", today - dt.timedelta(days=3285), key="start_date"
+    )
     end = st.sidebar.date_input("End date", today)
 
     if start >= end:
