@@ -94,7 +94,7 @@ def main():
     use_forecast = st.sidebar.checkbox("Activate forecast model")
     forecast_horizon = st.sidebar.slider("Forecast horizon", 1, 60, 20)
 
-    settings = MarketDataSettings(source="yfinance", default_ticker=DEFAULT_TICKER)
+    settings = MarketDataSettings(default_ticker=DEFAULT_TICKER)
     data_client = MarketDataClient(settings=settings)
 
     periods_per_year_map = {

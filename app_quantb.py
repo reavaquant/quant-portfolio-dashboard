@@ -7,7 +7,7 @@ import streamlit as st
 
 from alphas import BuyHoldAlpha, MovingAverageCrossAlpha
 from backtest import PortfolioBacktester
-from data_client import MarketDataClient, MarketDataSettings, MarketDataError
+from data_client import MarketDataClient, MarketDataError
 from portfolio import (
     compute_returns,
     equal_weights,
@@ -74,7 +74,7 @@ def main():
     st.sidebar.markdown("### Portfolio weights")
     mode = st.sidebar.radio("Weight mode", ["Equal weights", "Custom weights"])
 
-    client = MarketDataClient(MarketDataSettings(source="yfinance"))
+    client = MarketDataClient()
     try:
         prices = client.get_multi_asset_prices(tickers, start=start, end=end)
     except MarketDataError as e:
