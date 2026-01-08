@@ -132,16 +132,28 @@ def simulate_portfolio(
 
     equity = pd.Series(index=rets.index, dtype=float, name="Portfolio Equity")
 
+<<<<<<< HEAD
 
     holdings = initial_value * w
     equity.iloc[0] = initial_value
 
 
+=======
+    # holdings are in "value" terms per asset
+    holdings = initial_value * w
+    equity.iloc[0] = initial_value
+
+    # define rebalance dates
+>>>>>>> 9789c2e3dc1285b35bc71e73d66bcb36212a76ef
     if rebalance == "none":
         rebalance_dates = set()
     elif rebalance == "weekly":
         rebalance_dates = set(rets.resample("W-MON").first().index)
+<<<<<<< HEAD
     else: 
+=======
+    else:  # monthly
+>>>>>>> 9789c2e3dc1285b35bc71e73d66bcb36212a76ef
         rebalance_dates = set(rets.resample("ME").first().index)
 
     for i in range(1, len(rets)):
@@ -175,6 +187,10 @@ def strategy_portfolio_returns(
 
     rets = compute_returns(prices)
 
+<<<<<<< HEAD
+=======
+    # align
+>>>>>>> 9789c2e3dc1285b35bc71e73d66bcb36212a76ef
     positions = positions.reindex(rets.index).reindex(columns=rets.columns).fillna(0.0)
     w = base_weights.reindex(rets.columns).fillna(0.0)
     if float(w.sum()) == 0.0:
@@ -182,9 +198,17 @@ def strategy_portfolio_returns(
 
     w = w / float(w.sum())
 
+<<<<<<< HEAD
     if use_lookahead_safe_shift:
         positions = positions.shift(1).fillna(0.0)
 
+=======
+    # avoid lookahead: signal computed at date t is applied on next return (t -> t+1)
+    if use_lookahead_safe_shift:
+        positions = positions.shift(1).fillna(0.0)
+
+    # effective weights each day (<=1 total exposure because positions in {0,1})
+>>>>>>> 9789c2e3dc1285b35bc71e73d66bcb36212a76ef
     w_eff = positions.mul(w, axis=1)
 
     pr = (rets * w_eff).sum(axis=1)
