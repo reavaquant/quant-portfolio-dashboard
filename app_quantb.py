@@ -6,16 +6,19 @@ import pandas as pd
 import streamlit as st
 
 from alphas import BuyHoldAlpha, MovingAverageCrossAlpha
-from backtest import PortfolioBacktester
+from backtest import Backtester, PerformanceMetrics, PortfolioBacktester
 from data_client import MarketDataClient, MarketDataError
 from portfolio import (
+    compute_portfolio_returns,
     compute_returns,
     equal_weights,
     normalize_weights,
     correlation_matrix,
+    simulate_portfolio,
 )
 
 DEFAULT_TICKERS = "AAPL,MSFT,SPY"
+AUTO_REFRESH_MS = 5 * 60 * 1000  # 5 minutes
 
 
 def parse_tickers(s: str) -> list[str]:
@@ -26,6 +29,11 @@ def main():
     st.set_page_config(page_title="Quant B – Multi-Asset Portfolio", layout="wide")
     st.title("Quant B – Multi-Asset Portfolio")
 
+    st.markdown(
+        "<script>setTimeout(() => { window.location.reload(); }, "
+        f"{AUTO_REFRESH_MS});</script>",
+        unsafe_allow_html=True,
+    )
     st.sidebar.header("Parameters")
 
     tickers = parse_tickers(
@@ -69,6 +77,12 @@ def main():
         if int(short_window) >= int(long_window):
             st.sidebar.error("Short window must be < Long window.")
             st.stop()
+    rebalance_label = st.sidebar.selectbox(
+        "Rebalancing frequency",
+        options=["None", "Weekly", "Monthly"],
+        help="Applies to Buy & Hold portfolios.",
+    )
+    rebalance = rebalance_label.lower()
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Portfolio weights")
@@ -123,45 +137,70 @@ def main():
 
     periods_per_year = 252
     backtester = PortfolioBacktester(risk_free_rate=rf_rate, periods_per_year=periods_per_year)
-    result = backtester.run(prices, weights, alpha)
 
-    positions = result.positions
-    portfolio_returns = result.strategy_returns
-    equity = result.equity_curve
-    asset_returns = result.asset_returns
-
-    st.subheader("Portfolio equity curve")
-
-    equity_df = equity.reset_index()
-    equity_df.columns = ["Date", "Equity"]
-
-    chart = (
-        alt.Chart(equity_df)
-        .mark_line()
-        .encode(
-            x=alt.X(
-                "Date:T",
-                title="Date",
-                axis=alt.Axis(
-                    format="%Y-%m",
-                    tickCount=10,
-                    labelAngle=-45,
-                    grid=True,
-                ),
-            ),
-            y=alt.Y("Equity:Q",title="Portfolio value",scale=alt.Scale(domain=[float(equity.min()) * 0.98,float(equity.max()) * 1.02,]),axis=alt.Axis(grid=True),),
-            tooltip=[
-                alt.Tooltip("Date:T", title="Date"),
-                alt.Tooltip("Equity:Q", title="Equity", format=".3f"),
-            ],
+    use_rebalance = strategy_choice == "Buy & Hold" and rebalance != "none"
+    if use_rebalance:
+        positions = alpha.generate_positions(prices)
+        equity = simulate_portfolio(prices, weights, rebalance=rebalance)
+        portfolio_returns = equity.pct_change().fillna(0.0)
+        asset_returns = compute_portfolio_returns(compute_returns(prices), weights)
+        metrics_engine = PerformanceMetrics(
+            risk_free_rate=rf_rate, periods_per_year=periods_per_year
         )
-        .properties(height=700)
-    )
-    st.altair_chart(chart, use_container_width=True)
+        metrics = metrics_engine.compute_portfolio(
+            asset_returns,
+            portfolio_returns,
+            equity,
+            positions=positions,
+            weights=weights,
+            use_lookahead_safe_shift=False,
+        )
+    else:
+        result = backtester.run(prices, weights, alpha)
+        positions = result.positions
+        portfolio_returns = result.strategy_returns
+        equity = result.equity_curve
+        asset_returns = result.asset_returns
+        metrics = result.metrics
+
+    equity_aligned = equity.reindex(prices.index)
+    if pd.isna(equity_aligned.iloc[0]):
+        equity_aligned.iloc[0] = 1.0
+    equity_aligned = equity_aligned.ffill()
+
+    comparison_df = prices.div(prices.iloc[0]).copy()
+    comparison_df["Portfolio"] = equity_aligned / float(equity_aligned.iloc[0])
+    comparison_df.index.name = "Date"
+
+    st.markdown("### Strategy vs Asset Performance")
+    st.line_chart(comparison_df)
+
+    st.subheader("Single asset strategy vs portfolio")
+    asset_choice = st.selectbox("Asset", options=list(prices.columns))
+    single_series = prices[asset_choice].dropna()
+    if single_series.empty:
+        st.warning("No data available for the selected asset.")
+    else:
+        single_backtester = Backtester(
+            risk_free_rate=rf_rate, periods_per_year=periods_per_year
+        )
+        single_result = single_backtester.run(single_series, alpha)
+        single_strategy = single_result.equity_curve
+        single_strategy_norm = single_strategy / float(single_strategy.iloc[0])
+
+        portfolio_norm = comparison_df["Portfolio"]
+        single_compare = pd.concat(
+            [
+                single_strategy_norm.rename(f"{asset_choice} Strategy"),
+                portfolio_norm.rename("Portfolio"),
+            ],
+            axis=1,
+        ).dropna()
+        st.line_chart(single_compare)
 
     st.markdown("### Performance metrics")
 
-    m = result.metrics
+    m = metrics
 
     total_asset_return = m["Asset Total Return"]
     total_strategy_return = m["Strategy Total Return"]
