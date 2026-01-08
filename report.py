@@ -6,7 +6,7 @@ from typing import Dict, Any
 
 from alphas import BuyHoldAlpha
 from data_client import MarketDataClient, MarketDataSettings, MarketDataError
-from simulation import Backtester
+from backtest import Backtester
 
 
 PERIODS_PER_YEAR = {

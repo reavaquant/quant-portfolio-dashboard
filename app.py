@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from simulation import Backtester
+from backtest import Backtester
 from model import TrendRegressionModel
 from data_client import MarketDataClient, MarketDataSettings, MarketDataError
 from alphas import MovingAverageCrossAlpha, BuyHoldAlpha
