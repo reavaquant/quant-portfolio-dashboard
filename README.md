@@ -25,13 +25,6 @@ python report.py --ticker AAPL --window-days 365 --interval 1d --risk-free-rate 
 - Report fields include open/close price, volatility, and max drawdown.
 - Sample cron entry: see `cron_daily_report.cron`. Replace `/path/to/repo` with the absolute repo path and ensure `python3` and `report.py` paths are correct. Cron output is redirected to `logs/daily_report.log` (create `logs/` and `reports/` or adjust the path).
 
-### Keep the app running 24/7
-- Run under a process supervisor (systemd, supervisor, or tmux/screen) on the Linux VM, e.g.:
-```bash
-nohup streamlit run app.py --server.port 8501 > logs/streamlit.log 2>&1 &
-```
-- For VM deployment steps, cron setup, and a ready-to-edit systemd unit, see `DEPLOYMENT.md`.
-
 ### Tests
 ```bash
 pytest
@@ -46,3 +39,114 @@ pytest
 - `report.py` : CLI daily report generator
 - `cron_daily_report.cron` : cron example
 - `tests/` : unit tests (offline, synthetic data)
+
+## Deployment (Hetzner VPS / Ubuntu) — Streamlit + systemd + cron
+
+This Streamlit app is deployed on a VPS (Hetzner) and exposed publicly on port **8501** (Option A: direct access).  
+A **cron job** generates a daily JSON report on the VM.
+
+### Steps
+
+On the VPS:
+```bash
+sudo apt update && sudo apt -y upgrade
+sudo apt install -y python3 python3-venv python3-pip git ufw
+````
+
+### 2) Open network access (Option A: direct access to Streamlit)
+
+On the VPS (UFW):
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 8501/tcp
+sudo ufw --force enable
+sudo ufw status
+```
+
+Paths used:
+
+* Code: `/opt/quant-portfolio-dashboard/quant-portfolio-dashboard`
+* Virtualenv: `/opt/quant-portfolio-dashboard/.venv`
+
+```bash
+sudo mkdir -p /opt/quant-portfolio-dashboard
+sudo chown -R $USER:$USER /opt/quant-portfolio-dashboard
+cd /opt/quant-portfolio-dashboard
+
+git clone <REPO_URL> quant-portfolio-dashboard
+cd /opt/quant-portfolio-dashboard/quant-portfolio-dashboard
+
+python3 -m venv /opt/quant-portfolio-dashboard/.venv
+/opt/quant-portfolio-dashboard/.venv/bin/pip install -U pip
+/opt/quant-portfolio-dashboard/.venv/bin/pip install -r requirements.txt
+```
+
+Create the service:
+
+```bash
+sudo nano /etc/systemd/system/quant-portfolio-dashboard.service
+```
+
+Content:
+
+```ini
+[Unit]
+Description=Streamlit App
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/opt/quant-portfolio-dashboard/quant-portfolio-dashboard
+Environment="PATH=/opt/quant-portfolio-dashboard/.venv/bin"
+ExecStart=/opt/quant-portfolio-dashboard/.venv/bin/streamlit run app.py --server.address 0.0.0.0 --server.port 8501 --server.headless true
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now quant-portfolio-dashboard
+sudo systemctl status quant-portfolio-dashboard --no-pager -l
+```
+
+From your browser:
+
+* `http://135.181.145.104:8501`
+
+Cron job — generate a daily JSON report
+
+The `report.py` script generates a JSON report into `reports/` and writes logs into `logs/`.
+
+Create output folders:
+
+```bash
+mkdir -p /opt/quant-portfolio-dashboard/quant-portfolio-dashboard/reports
+mkdir -p /opt/quant-portfolio-dashboard/quant-portfolio-dashboard/logs
+```
+
+Install a system cron (recommended: `/etc/cron.d/`):
+
+```bash
+sudo nano /etc/cron.d/quant-portfolio-dashboard
+```
+
+Content (runs every day at 20:00 Paris time):
+
+```cron
+CRON_TZ=Europe/Paris
+0 20 * * * root cd /opt/quant-portfolio-dashboard/quant-portfolio-dashboard && /opt/quant-portfolio-dashboard/.venv/bin/python report.py --ticker AAPL --interval 1d --output-dir /opt/quant-portfolio-dashboard/quant-portfolio-dashboard/reports >> /opt/quant-portfolio-dashboard/quant-portfolio-dashboard/logs/report.log 2>&1
+```
+
+Deploy updates (after a `git push`)
+
+Deploy script:
+
+```bash
+/opt/quant-portfolio-dashboard/deploy.sh
+```
