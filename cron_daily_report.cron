@@ -1,4 +1,3 @@
-# Update /path/to/repo with the absolute path to this repository.
-# Optional: set timezone for the 20:00 run (e.g. CRON_TZ=Europe/Paris).
-# CRON_TZ=Europe/Paris
-0 20 * * * cd /path/to/repo/project && /usr/bin/env python3 report.py --ticker AAPL --interval 1d --output-dir /path/to/repo/project/reports >> /path/to/repo/project/logs/daily_report.log 2>&1
+CRON_TZ=Europe/Paris
+0 20 * * * cd /opt/quant-portfolio-dashboard/quant-portfolio-dashboard && /opt/quant-portfolio-dashboard/.venv/bin/python report.py --ticker AAPL --interval 1d --output-dir /opt/quant-portfolio-dashboard/quant-portfolio-dashboard/reports >> /opt/quant-portfolio-dashboard/quant-portfolio-dashboard/logs/report.log 2>&1
+
