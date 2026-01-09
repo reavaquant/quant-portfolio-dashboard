@@ -1,5 +1,4 @@
 import datetime as dt
-import json
 import os
 from typing import Optional
 
@@ -7,7 +6,6 @@ import altair as alt
 import numpy as np
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 
 from dotenv import load_dotenv
 
@@ -33,22 +31,6 @@ AUTO_REFRESH_MS = 5 * 60 * 1000  # 5 min (constant)
 DEFAULT_TICKER = os.getenv("DEFAULT_TICKER", "AAPL")
 DEFAULT_TICKERS = os.getenv("DEFAULT_TICKERS", "AAPL,MSFT,SPY")
 DEFAULT_LOOKBACK_DAYS = int(os.getenv("DEFAULT_LOOKBACK_DAYS", "3285"))
-
-
-def _load_json_env(name: str) -> dict:
-    raw = os.getenv(name, "")
-    if not raw:
-        return {}
-    try:
-        data = json.loads(raw)
-        return data if isinstance(data, dict) else {}
-    except json.JSONDecodeError:
-        return {}
-
-
-TV_DEFAULT_EXCHANGE = os.getenv("TV_DEFAULT_EXCHANGE", "NASDAQ")
-TV_EXCHANGE_OVERRIDES = _load_json_env("TV_EXCHANGE_OVERRIDES")
-TV_SYMBOL_OVERRIDES = _load_json_env("TV_SYMBOL_OVERRIDES")
 
 
 # -----------------------
@@ -182,6 +164,19 @@ div[data-testid="metric-container"]{
   animation: livePulse 1.6s ease-out infinite;
 }
 
+.price-banner{
+  margin: 0.6rem 0 0.75rem 0;
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  font-weight: 600;
+}
+.price-banner span{ color: var(--text); }
+
 .nav-wrap{
   margin: 0.35rem 0 1.0rem 0;
   display: flex;
@@ -224,20 +219,6 @@ div[data-testid="metric-container"]{
     )
 
 
-def divider() -> None:
-    if hasattr(st, "divider"):
-        st.divider()
-    else:
-        st.markdown("---")
-
-
-def sidebar_divider() -> None:
-    if hasattr(st.sidebar, "divider"):
-        st.sidebar.divider()
-    else:
-        st.sidebar.markdown("---")
-
-
 def page_header(title: str, subtitle: str) -> None:
     st.markdown(
         f"""
@@ -260,141 +241,6 @@ def inject_auto_refresh_constant() -> None:
         f"{AUTO_REFRESH_MS});</script>",
         unsafe_allow_html=True,
     )
-
-
-YF_SUFFIX_TO_TV_EXCHANGE = {
-    ".AX": "ASX",
-    ".AS": "EURONEXT",
-    ".BR": "EURONEXT",
-    ".PA": "EURONEXT",
-    ".LS": "EURONEXT",
-    ".IR": "EURONEXT",
-    ".NX": "EURONEXT",
-    ".MI": "MIL",
-    ".DE": "XETR",
-    ".F": "FWB",
-    ".BE": "BER",
-    ".BM": "BRM",
-    ".DU": "DUS",
-    ".HM": "HAM",
-    ".HA": "HAN",
-    ".MU": "MUN",
-    ".SG": "STU",
-    ".L": "LSE",
-    ".IL": "LSE",
-    ".SW": "SIX",
-    ".ST": "OMXSTO",
-    ".HE": "OMXHEX",
-    ".CO": "OMXCOP",
-    ".IC": "OMXICE",
-    ".TL": "OMXTSE",
-    ".RG": "OMXRSE",
-    ".VS": "OMXVSE",
-    ".OL": "OSE",
-    ".VI": "VIE",
-    ".AT": "ATHEX",
-    ".MC": "BME",
-    ".WA": "GPW",
-    ".HK": "HKEX",
-    ".SS": "SSE",
-    ".SZ": "SZSE",
-    ".T": "TSE",
-    ".TW": "TWSE",
-    ".TWO": "TPEX",
-    ".KS": "KRX",
-    ".KQ": "KOSDAQ",
-    ".BO": "BSE",
-    ".NS": "NSE",
-    ".JK": "IDX",
-    ".TA": "TASE",
-    ".JO": "JSE",
-    ".SA": "BMFBOVESPA",
-    ".SAU": "TADAWUL",
-    ".MX": "BMV",
-    ".KL": "MYX",
-    ".SI": "SGX",
-    ".BK": "SET",
-    ".NZ": "NZX",
-    ".SN": "BCS",
-    ".CL": "BVC",
-    ".BA": "BCBA",
-    ".CN": "CSE",
-    ".NE": "NEO",
-    ".TO": "TSX",
-    ".V": "TSXV",
-    ".QA": "QSE",
-    ".RO": "BVB",
-    ".IS": "BIST",
-    ".AE": "DFM",
-    ".VN": "HOSE",
-    ".PS": "PSE",
-    ".PR": "PSE",
-}
-
-
-def _normalize_tv_ticker(raw: str, exchange: str) -> str:
-    ticker = raw.strip().upper()
-    if exchange in {"NYSE", "NASDAQ", "AMEX", "NYSEARCA"}:
-        ticker = ticker.replace("-", ".")
-    return ticker
-
-
-def _tv_symbol_from_ticker(ticker: str, default_exchange: str = TV_DEFAULT_EXCHANGE) -> str:
-    t = ticker.strip().upper()
-    if not t:
-        return ""
-    override = TV_SYMBOL_OVERRIDES.get(t)
-    if isinstance(override, str) and override:
-        return override
-    if t.endswith("=X"):
-        pair = t[:-2].replace("-", "").replace("/", "")
-        return f"FX:{pair}"
-    if ":" in t:
-        return t
-    if "." in t:
-        root, suffix = t.rsplit(".", 1)
-        suffix = f".{suffix}"
-        exchange = TV_EXCHANGE_OVERRIDES.get(suffix) or YF_SUFFIX_TO_TV_EXCHANGE.get(suffix)
-        if exchange:
-            root = _normalize_tv_ticker(root, exchange)
-            return f"{exchange}:{root}"
-    root = _normalize_tv_ticker(t, default_exchange)
-    return f"{default_exchange}:{root}"
-
-
-def render_ticker_tape(tickers: list[str]) -> None:
-    symbols = []
-    for t in tickers:
-        sym = _tv_symbol_from_ticker(t)
-        if not sym:
-            continue
-        title = sym.split(":")[-1]
-        symbols.append({"proName": sym, "title": title})
-
-    if not symbols:
-        return
-
-    widget_config = {
-        "symbols": symbols,
-        "showSymbolLogo": True,
-        "colorTheme": "dark",
-        "isTransparent": True,
-        "displayMode": "adaptive",
-        "locale": "en",
-    }
-
-    components.html(
-        f"""
-<div class="tradingview-widget-container">
-  <div class="tradingview-widget-container__widget"></div>
-  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
-  {json.dumps(widget_config)}
-  </script>
-</div>
-""",
-        height=60,
-    )
-
 
 # -----------------------
 # CACHE DATA
@@ -446,49 +292,52 @@ def fmt_or_dash(x, fmt=".2f") -> str:
         return "-"
 
 
-PERSIST_PREFIX = "__persist__"
+SA_STATE_KEY = "sa_state"
+PF_STATE_KEY = "pf_state"
 
 
-def _persist_key(key: str) -> str:
-    return f"{PERSIST_PREFIX}{key}"
+def _ensure_state_defaults(state_key: str, defaults: dict) -> None:
+    state = st.session_state.get(state_key)
+    if not isinstance(state, dict):
+        st.session_state[state_key] = defaults.copy()
+        return
+    for key, value in defaults.items():
+        state.setdefault(key, value)
 
 
 def init_session_defaults() -> None:
     today = dt.date.today()
     default_start = today - dt.timedelta(days=DEFAULT_LOOKBACK_DAYS)
-    defaults = {
-        "sa_ticker": DEFAULT_TICKER,
-        "sa_start": default_start,
-        "sa_end": today,
-        "sa_interval_label": "1 day",
-        "sa_rf": 0.0,
-        "sa_strategy": "Buy & Hold",
-        "sa_short_window": 20,
-        "sa_long_window": 50,
-        "sa_forecast_horizon": 20,
-        "sa_use_log": True,
-        "pf_tickers": DEFAULT_TICKERS,
-        "pf_start": default_start,
-        "pf_end": today,
-        "pf_rf": 0.0,
-        "pf_strategy": "Buy & Hold",
-        "pf_short": 20,
-        "pf_long": 50,
-        "pf_rebalance": "None",
-        "pf_weight_mode": "Equal weights",
-    }
-    for key, value in defaults.items():
-        persist_key = _persist_key(key)
-        if persist_key not in st.session_state:
-            st.session_state[persist_key] = value
-        if key not in st.session_state:
-            st.session_state[key] = st.session_state[persist_key]
-
-
-def sync_persist(keys: list[str]) -> None:
-    for key in keys:
-        if key in st.session_state:
-            st.session_state[_persist_key(key)] = st.session_state[key]
+    _ensure_state_defaults(
+        SA_STATE_KEY,
+        {
+            "ticker": DEFAULT_TICKER,
+            "start": default_start,
+            "end": today,
+            "interval_label": "1 day",
+            "rf": 0.0,
+            "strategy": "Buy & Hold",
+            "short_window": 20,
+            "long_window": 50,
+            "forecast_horizon": 20,
+            "use_log": True,
+        },
+    )
+    _ensure_state_defaults(
+        PF_STATE_KEY,
+        {
+            "tickers": DEFAULT_TICKERS,
+            "start": default_start,
+            "end": today,
+            "rf": 0.0,
+            "strategy": "Buy & Hold",
+            "short_window": 20,
+            "long_window": 50,
+            "rebalance": "None",
+            "weight_mode": "Equal weights",
+            "custom_weights": {},
+        },
+    )
 
 
 def metrics_grid(m: dict) -> None:
@@ -509,6 +358,21 @@ def metrics_grid(m: dict) -> None:
     col10.metric("Turnover (avg abs delta pos)", "-" if np.isnan(turnover_val) else f"{100 * float(turnover_val):.2f} %")
 
 
+def render_price_banner(prices: dict[str, Optional[float]]) -> None:
+    if not prices:
+        return
+    items = []
+    for ticker, value in prices.items():
+        display = "-"
+        try:
+            if value is not None and not (isinstance(value, float) and np.isnan(value)):
+                display = f"{float(value):,.2f}"
+        except Exception:
+            display = "-"
+        items.append(f"<span><strong>{ticker}</strong> : {display}</span>")
+    st.markdown(f"<div class=\"price-banner\">{''.join(items)}</div>", unsafe_allow_html=True)
+
+
 # -----------------------
 # SIDEBARS (single / portfolio)
 # -----------------------
@@ -516,24 +380,42 @@ def sidebar_single_common():
     st.sidebar.subheader("Single asset parameters")
 
     today = dt.date.today()
+    state = st.session_state[SA_STATE_KEY]
 
-    ticker_input = st.sidebar.text_input("Ticker", key="sa_ticker")
-    ticker = ticker_input.strip().upper() or DEFAULT_TICKER
+    ticker_input = st.sidebar.text_input("Ticker", value=state["ticker"], key="sa_ticker_input")
+    ticker_clean = ticker_input.strip().upper()
+    if not ticker_clean:
+        ticker = state["ticker"]
+        st.session_state["sa_ticker_input"] = ticker
+    else:
+        ticker = ticker_clean
+    state["ticker"] = ticker
 
-    start_date = st.sidebar.date_input("Start date", max_value=today, key="sa_start")
+    start_default = min(state["start"], today)
+    start_date = st.sidebar.date_input("Start date", value=start_default, max_value=today, key="sa_start")
     if "sa_end" in st.session_state and st.session_state["sa_end"] < start_date:
         st.session_state["sa_end"] = start_date
-    end_date = st.sidebar.date_input("End date", min_value=start_date, max_value=today, key="sa_end")
+    end_default = state["end"]
+    if end_default < start_date:
+        end_default = start_date
+    if end_default > today:
+        end_default = today
+    end_date = st.sidebar.date_input("End date", value=end_default, min_value=start_date, max_value=today, key="sa_end")
 
     if start_date >= end_date:
         st.sidebar.error("Start date must be before end date.")
         st.stop()
 
     interval_label_map = {"5 min": "5m", "15 min": "15m", "30 min": "30m", "1 hour": "1h", "1 day": "1d"}
+    interval_labels = list(interval_label_map.keys())
+    interval_label = state.get("interval_label", "1 day")
+    if interval_label not in interval_labels:
+        interval_label = "1 day"
     interval_label = st.sidebar.selectbox(
         "Interval",
-        options=list(interval_label_map.keys()),
+        options=interval_labels,
         help="Intraday intervals are subject to Yahoo Finance limits (keep date window short).",
+        index=interval_labels.index(interval_label),
         key="sa_interval_label",
     )
     interval = interval_label_map[interval_label]
@@ -544,67 +426,87 @@ def sidebar_single_common():
         max_value=0.2,
         step=0.001,
         format="%.3f",
+        value=float(state["rf"]),
         key="sa_rf",
     )
 
-    sync_persist(["sa_ticker", "sa_start", "sa_end", "sa_interval_label", "sa_rf"])
+    state["start"] = start_date
+    state["end"] = end_date
+    state["interval_label"] = interval_label
+    state["rf"] = float(rf_rate)
     return ticker, start_date, end_date, interval, float(rf_rate)
 
 
 def sidebar_single_strategy():
+    state = st.session_state[SA_STATE_KEY]
+    strategy_options = ["Buy & Hold", "MA Crossover"]
+    strategy_default = state.get("strategy", "Buy & Hold")
+    if strategy_default not in strategy_options:
+        strategy_default = "Buy & Hold"
     strategy_choice = st.sidebar.selectbox(
         "Strategy",
-        options=["Buy & Hold", "MA Crossover"],
-        key="sa_strategy",
+        options=strategy_options,
+        index=strategy_options.index(strategy_default),
+        key="sa_strategy_choice",
     )
 
     short_window = st.sidebar.number_input(
         "Short window (if MA Crossover)",
         min_value=5,
         max_value=100,
+        value=int(state["short_window"]),
         key="sa_short_window",
     )
     long_window = st.sidebar.number_input(
         "Long window (if MA Crossover)",
         min_value=10,
         max_value=300,
+        value=int(state["long_window"]),
         key="sa_long_window",
     )
     if strategy_choice == "MA Crossover" and int(short_window) >= int(long_window):
         st.sidebar.error("Short window must be < Long window.")
         st.stop()
 
-    sync_persist(["sa_strategy", "sa_short_window", "sa_long_window"])
+    state["strategy"] = strategy_choice
+    state["short_window"] = int(short_window)
+    state["long_window"] = int(long_window)
     return strategy_choice, int(short_window), int(long_window)
 
 
 def sidebar_portfolio_common():
     st.sidebar.subheader("Multi-asset parameters")
+    state = st.session_state[PF_STATE_KEY]
 
     raw_tickers = st.sidebar.text_input(
         "Tickers (comma separated, min 3)",
+        value=state["tickers"],
         key="pf_tickers_input",
-        value=st.session_state[_persist_key("pf_tickers")],
     )
     candidate = parse_tickers(raw_tickers)
-    persisted_raw = st.session_state[_persist_key("pf_tickers")]
-    persisted_list = parse_tickers(persisted_raw)
+    persisted_list = parse_tickers(state["tickers"])
     if len(candidate) >= 3:
         tickers = candidate
-        st.session_state["pf_tickers"] = raw_tickers
-        st.session_state[_persist_key("pf_tickers")] = raw_tickers
+        state["tickers"] = raw_tickers
+    elif len(persisted_list) >= 3:
+        tickers = persisted_list
+        st.sidebar.warning("Please enter at least 3 tickers.")
     else:
         tickers = persisted_list if len(persisted_list) >= 3 else parse_tickers(DEFAULT_TICKERS)
+        state["tickers"] = ",".join(tickers)
         st.sidebar.warning("Please enter at least 3 tickers.")
 
-    today = dt.date.today()
     start = st.sidebar.date_input(
         "Start date",
+        value=state["start"],
         key="pf_start",
     )
     if "pf_end" in st.session_state and st.session_state["pf_end"] < start:
         st.session_state["pf_end"] = start
-    end = st.sidebar.date_input("End date", key="pf_end", min_value=start)
+    end_default = state["end"]
+    if end_default < start:
+        end_default = start
+    end = st.sidebar.date_input("End date", value=end_default, key="pf_end", min_value=start)
 
     if start >= end:
         st.sidebar.error("Start date must be before end date.")
@@ -616,42 +518,84 @@ def sidebar_portfolio_common():
         max_value=0.2,
         step=0.001,
         format="%.3f",
+        value=float(state["rf"]),
         key="pf_rf",
     )
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Strategy")
-    strategy_choice = st.sidebar.selectbox("Strategy", ["Buy & Hold", "MA Crossover"], key="pf_strategy")
+    strategy_options = ["Buy & Hold", "MA Crossover"]
+    strategy_default = state.get("strategy", "Buy & Hold")
+    if strategy_default not in strategy_options:
+        strategy_default = "Buy & Hold"
+    strategy_choice = st.sidebar.selectbox(
+        "Strategy",
+        strategy_options,
+        index=strategy_options.index(strategy_default),
+        key="pf_strategy",
+    )
 
-    short_window, long_window = 20, 50
+    short_window = int(state["short_window"])
+    long_window = int(state["long_window"])
     if strategy_choice == "MA Crossover":
-        short_window = st.sidebar.number_input("Short window", min_value=5, max_value=200, step=1, key="pf_short")
-        long_window = st.sidebar.number_input("Long window", min_value=10, max_value=400, step=1, key="pf_long")
+        short_window = st.sidebar.number_input(
+            "Short window",
+            min_value=5,
+            max_value=200,
+            step=1,
+            value=short_window,
+            key="pf_short",
+        )
+        long_window = st.sidebar.number_input(
+            "Long window",
+            min_value=10,
+            max_value=400,
+            step=1,
+            value=long_window,
+            key="pf_long",
+        )
         if int(short_window) >= int(long_window):
             st.sidebar.error("Short window must be < Long window.")
             st.stop()
 
+    rebalance_options = ["None", "Weekly", "Monthly"]
+    rebalance_default = state.get("rebalance", "None")
+    if rebalance_default not in rebalance_options:
+        rebalance_default = "None"
     rebalance_label = st.sidebar.selectbox(
         "Rebalancing frequency",
-        options=["None", "Weekly", "Monthly"],
+        options=rebalance_options,
         help="Applies to Buy & Hold portfolios.",
+        index=rebalance_options.index(rebalance_default),
         key="pf_rebalance",
     )
     rebalance = rebalance_label.lower()
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Portfolio weights")
-    mode = st.sidebar.radio("Weight mode", ["Equal weights", "Custom weights"], key="pf_weight_mode")
+    mode_options = ["Equal weights", "Custom weights"]
+    mode_default = state.get("weight_mode", "Equal weights")
+    if mode_default not in mode_options:
+        mode_default = "Equal weights"
+    mode = st.sidebar.radio(
+        "Weight mode",
+        mode_options,
+        index=mode_options.index(mode_default),
+        key="pf_weight_mode",
+    )
 
     custom_raw = None
     if mode == "Custom weights":
+        prior_weights = state.get("custom_weights", {})
+        if not isinstance(prior_weights, dict):
+            prior_weights = {}
         raw = {}
         for t in tickers:
             raw[t] = st.sidebar.slider(
                 f"{t} (%)",
                 min_value=0,
                 max_value=100,
-                value=int(100 / len(tickers)),
+                value=int(prior_weights.get(t, 100 / len(tickers))),
                 step=1,
                 key=f"pf_w_{t}",
             )
@@ -667,19 +611,16 @@ def sidebar_portfolio_common():
             st.stop()
 
         custom_raw = raw
+        state["custom_weights"] = raw
 
-    sync_persist(
-        [
-            "pf_start",
-            "pf_end",
-            "pf_rf",
-            "pf_strategy",
-            "pf_short",
-            "pf_long",
-            "pf_rebalance",
-            "pf_weight_mode",
-        ]
-    )
+    state["start"] = start
+    state["end"] = end
+    state["rf"] = float(rf_rate)
+    state["strategy"] = strategy_choice
+    state["short_window"] = int(short_window)
+    state["long_window"] = int(long_window)
+    state["rebalance"] = rebalance_label
+    state["weight_mode"] = mode
 
     return (
         tickers,
@@ -703,8 +644,6 @@ def page_single_strat_perf():
 
     ticker, start_date, end_date, interval, rf_rate = sidebar_single_common()
     strategy_choice, short_window, long_window = sidebar_single_strategy()
-    render_ticker_tape([ticker])
-
     periods_per_year = periods_per_year_for_interval(interval)
     backtester = Backtester(risk_free_rate=rf_rate, periods_per_year=periods_per_year)
 
@@ -720,6 +659,8 @@ def page_single_strat_perf():
     close = data["Close"].copy()
     strategy = build_strategy(strategy_choice, short_window, long_window)
     result = backtester.run(close, strategy)
+
+    render_price_banner({ticker: close.iloc[-1]})
 
     comparison = pd.concat(
         [
@@ -740,13 +681,19 @@ def page_single_forecast():
     page_header("Single Asset Strategy", "Forecast")
 
     ticker, start_date, end_date, interval, rf_rate = sidebar_single_common()
-    render_ticker_tape([ticker])
-
     st.sidebar.markdown("---")
     st.sidebar.subheader("Forecast model")
-    forecast_horizon = st.sidebar.slider("Forecast horizon", 1, 60, key="sa_forecast_horizon")
-    use_log = st.sidebar.checkbox("Use log prices", key="sa_use_log")
-    sync_persist(["sa_forecast_horizon", "sa_use_log"])
+    state = st.session_state[SA_STATE_KEY]
+    forecast_horizon = st.sidebar.slider(
+        "Forecast horizon",
+        1,
+        60,
+        value=int(state["forecast_horizon"]),
+        key="sa_forecast_horizon",
+    )
+    use_log = st.sidebar.checkbox("Use log prices", value=bool(state["use_log"]), key="sa_use_log")
+    state["forecast_horizon"] = int(forecast_horizon)
+    state["use_log"] = bool(use_log)
 
     try:
         data = fetch_history(ticker=ticker, start=start_date, end=end_date, interval=interval)
@@ -860,7 +807,6 @@ def page_portfolio_main_metrics():
         weight_mode,
         custom_raw,
     ) = sidebar_portfolio_common()
-    render_ticker_tape(tickers)
 
     try:
         prices, returns, weights, positions, portfolio_returns, equity, metrics, alpha = run_portfolio_engine(
@@ -869,6 +815,9 @@ def page_portfolio_main_metrics():
     except MarketDataError as e:
         st.error(str(e))
         st.stop()
+
+    latest_prices = prices.iloc[-1]
+    render_price_banner({ticker: latest_prices.get(ticker) for ticker in tickers})
 
     st.subheader("Performance metrics")
     metrics_grid(metrics)
@@ -902,7 +851,6 @@ def page_portfolio_single_vs():
         weight_mode,
         custom_raw,
     ) = sidebar_portfolio_common()
-    render_ticker_tape(tickers)
 
     try:
         prices, returns, weights, positions, portfolio_returns, equity, metrics, alpha = run_portfolio_engine(
@@ -957,7 +905,6 @@ def page_portfolio_correlation():
         weight_mode,
         custom_raw,
     ) = sidebar_portfolio_common()
-    render_ticker_tape(tickers)
 
     try:
         prices, returns, weights, positions, portfolio_returns, equity, metrics, alpha = run_portfolio_engine(
@@ -1097,11 +1044,6 @@ def main():
     apply_minimal_dark()
     inject_auto_refresh_constant()
     init_session_defaults()
-
-    # Sidebar brand
-    # st.sidebar.markdown("### Quant Dashboard")
-    # st.sidebar.caption("Pages • Backtests • Portfolio • Metrics")
-    # sidebar_divider()
 
     # Navigation (fix: url_path WITHOUT slashes)
     if hasattr(st, "Page") and hasattr(st, "navigation"):
