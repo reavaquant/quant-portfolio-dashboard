@@ -1,3 +1,0 @@
-CRON_TZ=Europe/Paris
-0 20 * * * cd /opt/quant-portfolio-dashboard/quant-portfolio-dashboard && /opt/quant-portfolio-dashboard/.venv/bin/python report.py --ticker AAPL --interval 1d --output-dir /opt/quant-portfolio-dashboard/quant-portfolio-dashboard/reports >> /opt/quant-portfolio-dashboard/quant-portfolio-dashboard/logs/report.log 2>&1
-

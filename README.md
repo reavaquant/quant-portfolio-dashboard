@@ -1,48 +1,57 @@
-## Single Asset Module (Quant A)
+# Quant Dashboard
 
-Streamlit dashboard for single-asset backtesting and a daily reporting CLI.
+Streamlit dashboard for single-asset and portfolio backtesting plus a daily reporting.
 
-### Setup
-1. Python 3.10+ recommended.
-2. Install deps: `pip install -r requirements.txt`
-3. Optional: set `DEFAULT_TICKER` in your env (`.env` supported).
+## Overview
+- Quant A (single asset): Yahoo Finance backtests with 5m/15m/30m/1h/1d data, Buy & Hold or MA crossover, and optional trend regression forecast.
+- Quant B (portfolio): multi-asset analysis with equal/custom weights, optional weekly/monthly rebalancing, single-vs-portfolio comparison, and correlation heatmap.
+- Metrics engine: total return, CAGR (calendar time), vol, Sharpe/Sortino/Omega/Upside Potential, max drawdown, turnover, Calmar/Sterling.
+- CLI generates JSON reports for single-asset Buy & Hold runs (cron-friendly).
 
-### Run the dashboard
+## Requirements
+- Python 3.10+ recommended
+- `pip` (or `pip3`)
+
+## Installation
+```bash
+pip install -r requirements.txt
+```
+
+## Run the dashboard
 ```bash
 streamlit run app.py
 ```
-- Supports Yahoo Finance intervals: 5m, 15m, 30m, 1h, 1d. Intraday windows are limited by Yahoo (keep date range short).
+- Yahoo Finance intervals supported: 5m, 15m, 30m, 1h, 1d.
+- Intraday data windows are limited by Yahoo; keep date ranges short.
 - Auto-refresh every 5 minutes is injected via a lightweight JS timer.
-- Two strategies: Buy & Hold, Moving Average Crossover (configurable windows).
-- Metrics: total returns, CAGR (calendar time), vol, Sharpe/Sortino/Omega/Upside Potential, max drawdown, turnover, Calmar/Sterling.
-- Optional trend regression forecast with CIs.
+- Use the top navigation to switch between Single Asset and Portfolio pages.
 
-### Daily report + cron
-- Generate a JSON report (default 1-year Buy & Hold) into `reports/`:
+## Daily report CLI
+Generate a JSON report (default 1-year Buy & Hold) into `reports/`:
 ```bash
-python report.py --ticker AAPL --window-days 365 --interval 1d --risk-free-rate 0.0
+python report.py --ticker AAPL --window-days 365 --interval 1d --risk-free-rate 0.0 --output-dir reports
 ```
-- Report fields include open/close price, volatility, and max drawdown.
-- Sample cron entry: see `cron_daily_report.cron`. Replace `/path/to/repo` with the absolute repo path and ensure `python3` and `report.py` paths are correct. Cron output is redirected to `logs/daily_report.log` (create `logs/` and `reports/` or adjust the path).
+- Report includes price snapshot and the strategy metrics.
+- Cron example: see `cron_daily_report.cron`. Replace `/path/to/repo` with the absolute repo path and ensure `python3` and `report.py` paths are correct. Cron output is redirected to `logs/daily_report.log` (create `logs/` and `reports/` or adjust the path).
 
-### Tests
+## Tests
 ```bash
 pytest
 ```
 
-### Project structure
-- `app.py` : Streamlit UI + backtests + forecast
-- `data_client.py` : market data accessors (Yahoo Finance by default)
-- `backtest.py` : backtesting and metrics engine
-- `alphas.py` : strategies (Buy & Hold, MA crossover)
-- `model.py` : trend regression forecaster
-- `report.py` : CLI daily report generator
-- `cron_daily_report.cron` : cron example
-- `tests/` : unit tests (offline, synthetic data)
+## Project structure
+- `app.py`: Streamlit UI + backtests + forecast
+- `data_client.py`: market data accessors (Yahoo Finance by default)
+- `backtest.py`: backtesting and metrics engine
+- `alphas.py`: strategies (Buy & Hold, MA crossover)
+- `portfolio.py`: portfolio math (returns, weights, rebalancing, correlation)
+- `model.py`: trend regression forecaster
+- `report.py`: CLI daily report generator (single asset)
+- `tests/`: unit tests (offline, synthetic data)
 
 ## Deployment (Hetzner VPS / Ubuntu) — Streamlit + systemd + cron
 
-This Streamlit app is deployed on a VPS (Hetzner) and exposed publicly on port **8501** (Option A: direct access).  
+This Streamlit app is deployed on a VPS (Hetzner) and exposed publicly on port **8501**.  
 A **cron job** generates a daily JSON report on the VM.
 
 ### Steps
@@ -51,7 +60,7 @@ On the VPS:
 ```bash
 sudo apt update && sudo apt -y upgrade
 sudo apt install -y python3 python3-venv python3-pip git ufw
-````
+```
 
 ### 2) Open network access (Option A: direct access to Streamlit)
 

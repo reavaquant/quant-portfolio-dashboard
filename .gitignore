@@ -12,5 +12,4 @@ __pycache__/
 # OS
 .DS_Store
 
-reports/
 logs/

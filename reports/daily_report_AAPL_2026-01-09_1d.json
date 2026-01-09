@@ -1,0 +1,25 @@
+{
+  "as_of": "2026-01-09T16:56:52.106152Z",
+  "ticker": "AAPL",
+  "interval": "1d",
+  "start": "2025-01-09",
+  "end": "2026-01-09",
+  "open_price": 259.07501220703125,
+  "close_price": 257.44500732421875,
+  "last_price": 257.44500732421875,
+  "strategy": "Buy & Hold",
+  "metrics": {
+    "Asset Total Return": 0.08695377112087743,
+    "Strategy Total Return": 0.08695377112087743,
+    "Strategy CAGR": 0.08726504234271193,
+    "Strategy Volatility (ann.)": 0.3229793916019103,
+    "Strategy Sharpe": 0.4179999548882348,
+    "Strategy Sortino": 0.4394714055073921,
+    "Upside Potential Ratio": 0.6634396212423533,
+    "Omega Ratio": 1.0883666042663205,
+    "Strategy Max Drawdown": -0.30222584415188225,
+    "Sterling Ratio": 0.2887411650304045,
+    "Calmar Ratio": 0.2887411650304045,
+    "Strategy Turnover": 0.0
+  }
+}
