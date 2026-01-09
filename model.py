@@ -17,23 +17,7 @@ class TrendRegressionModel:
         self.horizon = horizon
         self.use_log = use_log
 
-    def fit_predict(self, prices: pd.Series) -> Optional[ForecastResult]:
-        """
-        Fit a trend regression model to the given prices and return the forecast
-        for the given horizon.
-
-        Parameters
-        ----------
-        prices : pd.Series
-            The prices to fit the model to.
-
-        Returns
-        -------
-        Optional[ForecastResult]
-            A ForecastResult object containing the forecast, lower and upper
-            confidence intervals for the given horizon. If the model cannot be
-            fit, return None.
-        """
+    def fit_predict(self, prices: pd.Series):
         y = prices.dropna()
         if len(y) < 20:
             return None

@@ -36,7 +36,7 @@ class MarketDataClient:
         start: Optional[dt.date] = None,
         end: Optional[dt.date] = None,
         interval: str = "1d",
-    ) -> pd.DataFrame:
+    ):
         ticker = self._resolve_ticker(ticker)
         interval = self._validate_interval(interval)
         start, end = self._normalize_dates(start, end)
@@ -67,7 +67,7 @@ class MarketDataClient:
         start: Optional[dt.date] = None,
         end: Optional[dt.date] = None,
         interval: str = "1d",
-    ) -> pd.DataFrame:
+    ):
         tickers = self._normalize_tickers(tickers)
         if len(tickers) < 2:
             raise MarketDataError("At least two tickers are required.")
@@ -88,14 +88,14 @@ class MarketDataClient:
 
         return prices
 
-    def get_last_price(self, ticker: Optional[str] = None) -> float:
+    def get_last_price(self, ticker: Optional[str] = None):
         df = self.get_history(ticker=ticker)
         return float(df["Close"].iloc[-1])
 
-    def get_latest_price(self, ticker: Optional[str] = None) -> float:
+    def get_latest_price(self, ticker: Optional[str] = None):
         return self.get_last_price(ticker)
 
-    def _normalize_tickers(self, tickers: Iterable[str]) -> list[str]:
+    def _normalize_tickers(self, tickers: Iterable[str]):
         if tickers is None:
             return []
         if isinstance(tickers, str):
@@ -105,13 +105,13 @@ class MarketDataClient:
         cleaned = [str(t).strip().upper() for t in raw if str(t).strip()]
         return sorted(set(cleaned))
 
-    def _resolve_ticker(self, ticker: Optional[str]) -> str:
+    def _resolve_ticker(self, ticker: Optional[str]):
         resolved = ticker or self.settings.default_ticker
         if resolved is None:
             raise MarketDataError("Ticker is required.")
         return resolved.strip().upper()
 
-    def _validate_interval(self, interval: str) -> str:
+    def _validate_interval(self, interval: str):
         normalized = self._interval_map.get(interval.lower())
         if normalized is None:
             raise MarketDataError(
@@ -121,7 +121,7 @@ class MarketDataClient:
 
     def _normalize_dates(
         self, start: Optional[dt.date], end: Optional[dt.date]
-    ) -> Tuple[dt.date, dt.date]:
+    ):
         today = dt.date.today()
         if end is None or end > today:
             end = today
@@ -131,7 +131,7 @@ class MarketDataClient:
             raise MarketDataError("Start date must be <= end date.")
         return start, end
 
-    def _ensure_datetime_index(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _ensure_datetime_index(self, df: pd.DataFrame):
         if not isinstance(df.index, pd.DatetimeIndex):
             df = df.copy()
             df.index = pd.to_datetime(df.index)
@@ -142,13 +142,13 @@ class MarketDataClient:
 
     def _slice_date_range(
         self, df: pd.DataFrame, start: dt.date, end: dt.date
-    ) -> pd.DataFrame:
+    ):
         if df.empty:
             return df
         mask = (df.index.date >= start) & (df.index.date <= end)
         return df.loc[mask]
 
-    def _select_ticker_frame(self, df: pd.DataFrame, ticker: str) -> pd.DataFrame:
+    def _select_ticker_frame(self, df: pd.DataFrame, ticker: str):
         if not isinstance(df.columns, pd.MultiIndex):
             return df
 
@@ -167,7 +167,7 @@ class MarketDataClient:
         start: dt.date,
         end: dt.date,
         interval: str,
-    ) -> pd.DataFrame:
+    ):
         try:
             import yfinance as yf
         except ImportError as exc:

@@ -20,25 +20,11 @@ class PerformanceMetrics:
         self.risk_free_rate = risk_free_rate
         self.periods_per_year = periods_per_year
 
-    def compute(
-        self,
-        asset_returns: pd.Series,
-        strategy_returns: pd.Series,
-        equity: pd.Series,
-        positions: Optional[pd.Series] = None,
-    ) -> Dict[str, float]:
+    def compute(self, asset_returns, strategy_returns, equity, positions = None):
         turnover = self._turnover(positions)
         return self._compute_base(asset_returns, strategy_returns, equity, turnover)
 
-    def compute_portfolio(
-        self,
-        asset_returns: pd.Series,
-        strategy_returns: pd.Series,
-        equity: pd.Series,
-        positions: Optional[pd.DataFrame] = None,
-        weights: Optional[pd.Series] = None,
-        use_lookahead_safe_shift: bool = True,
-    ) -> Dict[str, float]:
+    def compute_portfolio(self, asset_returns, strategy_returns, equity,positions = None, weights = None,use_lookahead_safe_shift = True):
         turnover = self._turnover_portfolio(positions, weights, use_lookahead_safe_shift)
         return self._compute_base(asset_returns, strategy_returns, equity, turnover)
 
@@ -48,7 +34,7 @@ class PerformanceMetrics:
         strategy_returns: pd.Series,
         equity: pd.Series,
         turnover: float,
-    ) -> Dict[str, float]:
+    ):
         cagr = self._cagr(equity)
         max_dd = max_drawdown(equity)
 
@@ -67,13 +53,13 @@ class PerformanceMetrics:
             "Strategy Turnover": turnover,
         }
 
-    def _total_return(self, returns: pd.Series) -> float:
+    def _total_return(self, returns: pd.Series):
         return float((1 + returns).prod() - 1.0)
 
-    def _volatility(self, returns: pd.Series) -> float:
+    def _volatility(self, returns: pd.Series):
         return annualized_volatility(returns, periods_per_year=self.periods_per_year)
 
-    def _sharpe(self, returns: pd.Series) -> float:
+    def _sharpe(self, returns: pd.Series):
         rf_per_period = self.risk_free_rate / self.periods_per_year
         excess = returns - rf_per_period
         vol = excess.std()
@@ -81,7 +67,7 @@ class PerformanceMetrics:
             return float("nan")
         return float(np.sqrt(self.periods_per_year) * excess.mean() / vol)
 
-    def _sortino(self, returns: pd.Series) -> float:
+    def _sortino(self, returns: pd.Series):
         rf_per_period = self.risk_free_rate / self.periods_per_year
         excess = returns - rf_per_period
         downside = excess[excess < 0]
@@ -90,7 +76,7 @@ class PerformanceMetrics:
             return float("nan")
         return float(np.sqrt(self.periods_per_year) * excess.mean() / downside_dev)
 
-    def _upside_potential_ratio(self, returns: pd.Series) -> float:
+    def _upside_potential_ratio(self, returns: pd.Series):
         rf_per_period = self.risk_free_rate / self.periods_per_year
         excess = returns - rf_per_period
         upside = excess[excess > 0]
@@ -102,7 +88,7 @@ class PerformanceMetrics:
             return 0.0
         return float(upside.mean() / downside_dev)
 
-    def _omega_ratio(self, returns: pd.Series) -> float:
+    def _omega_ratio(self, returns: pd.Series):
         rf_per_period = self.risk_free_rate / self.periods_per_year
         excess = returns - rf_per_period
         numerator = excess[excess > 0].sum()
@@ -111,7 +97,7 @@ class PerformanceMetrics:
             return float("nan")
         return float(numerator / denominator)
 
-    def _cagr(self, equity: pd.Series) -> float:
+    def _cagr(self, equity: pd.Series):
         if len(equity) < 2:
             return float("nan")
 
@@ -122,17 +108,17 @@ class PerformanceMetrics:
             return float("nan")
         return float((equity.iloc[-1] / equity.iloc[0]) ** (1 / years) - 1.0)
 
-    def _sterling_ratio(self, cagr: float, max_drawdown_val: float) -> float:
+    def _sterling_ratio(self, cagr: float, max_drawdown_val: float):
         if max_drawdown_val >= 0:
             return float("nan")
         return float((cagr - self.risk_free_rate) / abs(max_drawdown_val))
 
-    def _calmar_ratio(self, cagr: float, max_drawdown_val: float) -> float:
+    def _calmar_ratio(self, cagr: float, max_drawdown_val: float):
         if max_drawdown_val >= 0:
             return float("nan")
         return float(cagr / abs(max_drawdown_val))
 
-    def _turnover(self, positions: Optional[pd.Series]) -> float:
+    def _turnover(self, positions: Optional[pd.Series]):
         if positions is None or len(positions) < 2:
             return float("nan")
         changes = positions.diff().abs().fillna(0.0)
@@ -143,7 +129,7 @@ class PerformanceMetrics:
         positions: Optional[pd.DataFrame],
         weights: Optional[pd.Series],
         use_lookahead_safe_shift: bool,
-    ) -> float:
+    ):
         if positions is None or positions.empty or len(positions) < 2:
             return float("nan")
         if weights is None or weights.empty:

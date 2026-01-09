@@ -13,10 +13,6 @@ class Alpha(ABC):
 
     @abstractmethod
     def generate_positions(self, prices: pd.DataFrame) -> pd.DataFrame:
-        """
-        prices: DataFrame (Date x Assets)
-        returns: positions DataFrame (Date x Assets) with values in {0,1} (or [0,1])
-        """
         raise NotImplementedError
 
 
