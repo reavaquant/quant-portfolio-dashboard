@@ -22,13 +22,15 @@ streamlit run app.py
 ```bash
 python report.py --ticker AAPL --window-days 365 --interval 1d --risk-free-rate 0.0
 ```
-- Sample cron entry: see `cron_daily_report.cron`. Replace `/path/to/repo` with the absolute repo path and ensure `python3` and `report.py` paths are correct. Cron output is redirected to `logs/daily_report.log` (create `logs/` or adjust the path).
+- Report fields include open/close price, volatility, and max drawdown.
+- Sample cron entry: see `cron_daily_report.cron`. Replace `/path/to/repo` with the absolute repo path and ensure `python3` and `report.py` paths are correct. Cron output is redirected to `logs/daily_report.log` (create `logs/` and `reports/` or adjust the path).
 
 ### Keep the app running 24/7
 - Run under a process supervisor (systemd, supervisor, or tmux/screen) on the Linux VM, e.g.:
 ```bash
 nohup streamlit run app.py --server.port 8501 > logs/streamlit.log 2>&1 &
 ```
+- For VM deployment steps, cron setup, and a ready-to-edit systemd unit, see `DEPLOYMENT.md`.
 
 ### Tests
 ```bash

@@ -38,13 +38,16 @@ def generate_report(
     strategy = BuyHoldAlpha()
     result = backtester.run(prices["Close"], strategy)
 
+    last_row = prices.iloc[-1]
     report: Dict[str, Any] = {
         "as_of": dt.datetime.utcnow().isoformat() + "Z",
         "ticker": ticker,
         "interval": interval,
         "start": start.isoformat(),
         "end": end.isoformat(),
-        "last_price": float(prices["Close"].iloc[-1]),
+        "open_price": float(last_row["Open"]),
+        "close_price": float(last_row["Close"]),
+        "last_price": float(last_row["Close"]),
         "strategy": strategy.name,
         "metrics": result.metrics,
     }

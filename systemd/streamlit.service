@@ -1,0 +1,19 @@
+[Unit]
+Description=Streamlit app (PGL)
+After=network.target
+
+[Service]
+Type=simple
+# Update User/WorkingDirectory/ExecStart to match your VM paths and user.
+User=ubuntu
+WorkingDirectory=/path/to/repo/project
+Environment=PYTHONUNBUFFERED=1
+Environment=STREAMLIT_SERVER_HEADLESS=true
+ExecStart=/path/to/repo/project/.venv/bin/streamlit run app.py --server.address 0.0.0.0 --server.port 8501
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
